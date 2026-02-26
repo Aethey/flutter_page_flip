@@ -155,35 +155,20 @@ class PageCurlPainter extends CustomPainter {
     }
 
     final Path reflectedCurlPath = _buildReflectedCurlPath(g, size);
-    final double backMix = Curves.easeInOut.transform(g.progress.clamp(0.0, 1.0));
-    final double frontHintOpacity = (1 - backMix) * 0.30;
-    final double backFaceOpacity = 0.55 + backMix * 0.40;
+    final double t = Curves.easeInOut.transform(g.progress.clamp(0.0, 1.0));
 
-    // Layer 4: below page + projection shadow.
+    // Layer 1: below page visible through the lifted area.
     canvas.drawImage(belowImage!, Offset.zero, Paint());
     _drawProjectionShadow(canvas, size, g);
 
-    // Layer 1: stationary visible part of current page.
+    // Layer 2: stationary visible part of current page.
     canvas.save();
     canvas.clipPath(g.stationaryPath);
     canvas.drawImage(currentImage, Offset.zero, Paint());
     _drawFoldEdgeShadow(canvas, size, g);
     canvas.restore();
 
-    // Layer 2: a thin front-face remnant near the lifted area.
-    if (frontHintOpacity > 0.01) {
-      canvas.saveLayer(pageRect, Paint());
-      canvas.clipPath(g.curlPath);
-      canvas.drawImage(
-        currentImage,
-        Offset.zero,
-        Paint()..color = Colors.white.withOpacity(frontHintOpacity),
-      );
-      _drawCurlFrontHighlight(canvas, size, g);
-      canvas.restore();
-    }
-
-    // Layer 3: curled back face with mirrored content and independent lighting.
+    // Layer 3: curled back face with reflected content, paper tint, and cylinder shading.
     canvas.saveLayer(pageRect, Paint());
     canvas.clipPath(reflectedCurlPath);
 
@@ -192,14 +177,23 @@ class PageCurlPainter extends CustomPainter {
     canvas.drawImage(
       flapBackImage,
       Offset.zero,
-      Paint()..color = Colors.white.withOpacity(backFaceOpacity),
+      Paint()..color = Colors.white.withOpacity(0.60 + t * 0.35),
     );
     canvas.restore();
 
-    _drawBackFaceTone(canvas, size, g, amount: 0.7 + backMix * 0.6);
-    _drawBackFaceHighlight(canvas, size, g, amount: 0.5 + backMix * 0.8);
+    final double tintOpacity = (0.45 - t * 0.20).clamp(0.10, 0.50);
+    canvas.drawRect(
+      pageRect,
+      Paint()..color = Color.fromRGBO(235, 222, 200, tintOpacity),
+    );
+
+    _drawBackFaceTone(canvas, size, g, amount: 0.8 + t * 0.5);
+    _drawBackFaceHighlight(canvas, size, g, amount: 0.6 + t * 0.7);
 
     canvas.restore();
+
+    // Layer 4: cylinder highlight along fold line.
+    _drawCylinderHighlight(canvas, size, g);
 
     _drawPaperContour(canvas, g);
   }
@@ -246,14 +240,14 @@ class PageCurlPainter extends CustomPainter {
 
     final Paint paint = Paint()
       ..shader = ui.Gradient.linear(
-        Offset(-width, 0),
         Offset(0, 0),
+        Offset(width, 0),
         [Colors.black.withOpacity(opacity), Colors.transparent],
         const [0.0, 1.0],
       );
 
     canvas.drawRect(
-      Rect.fromLTWH(-width, -size.height * 2, width, size.height * 4),
+      Rect.fromLTWH(0, -size.height * 2, width, size.height * 4),
       paint,
     );
     canvas.restore();
@@ -287,33 +281,6 @@ class PageCurlPainter extends CustomPainter {
     canvas.restore();
   }
 
-  void _drawCurlFrontHighlight(Canvas canvas, Size size, CurlGeometry g) {
-    final double width =
-        (shadowWidth * 0.55).clamp(5.0, size.width * 0.35);
-    final double angleFactor = (1 - g.normal.dx.abs()).clamp(0.1, 1.0);
-    final double opacity =
-        (0.10 + 0.28 * angleFactor * g.progress) * highlightStrength.clamp(0.0, 2.0);
-
-    canvas.save();
-    canvas.translate(g.mid.dx, g.mid.dy);
-    canvas.rotate(math.atan2(g.normal.dy, g.normal.dx));
-
-    final Paint paint = Paint()
-      ..shader = ui.Gradient.linear(
-        Offset(0, 0),
-        Offset(width, 0),
-        [Colors.white.withOpacity(opacity), Colors.transparent],
-        const [0.0, 1.0],
-      );
-
-    canvas.drawRect(
-      Rect.fromLTWH(0, -size.height * 2, width, size.height * 4),
-      paint,
-    );
-
-    canvas.restore();
-  }
-
   void _drawBackFaceTone(
     Canvas canvas,
     Size size,
@@ -335,17 +302,17 @@ class PageCurlPainter extends CustomPainter {
     final Paint paint = Paint()
       ..shader = ui.Gradient.linear(
         Offset(-width, 0),
-        Offset(width, 0),
+        Offset(0, 0),
         [
-          Colors.black.withOpacity(opacity * 0.95),
-          Colors.black.withOpacity(opacity * 0.35),
           Colors.transparent,
+          Colors.black.withOpacity(opacity * 0.40),
+          Colors.black.withOpacity(opacity),
         ],
-        const [0.0, 0.42, 1.0],
+        const [0.0, 0.50, 1.0],
       );
 
     canvas.drawRect(
-      Rect.fromLTWH(-width, -size.height * 2, width * 2, size.height * 4),
+      Rect.fromLTWH(-width, -size.height * 2, width, size.height * 4),
       paint,
     );
 
@@ -376,8 +343,12 @@ class PageCurlPainter extends CustomPainter {
       ..shader = ui.Gradient.linear(
         Offset(-width, 0),
         Offset(0, 0),
-        [Colors.white.withOpacity(opacity), Colors.transparent],
-        const [0.0, 1.0],
+        [
+          Colors.transparent,
+          Colors.white.withOpacity(opacity),
+          Colors.transparent,
+        ],
+        const [0.0, 0.40, 1.0],
       );
 
     canvas.drawRect(
@@ -388,16 +359,57 @@ class PageCurlPainter extends CustomPainter {
     canvas.restore();
   }
 
+  void _drawCylinderHighlight(Canvas canvas, Size size, CurlGeometry g) {
+    final double width = (shadowWidth * 0.20).clamp(2.0, 12.0);
+    final double angleFactor = (1 - g.normal.dx.abs()).clamp(0.15, 1.0);
+    final double opacity =
+        (0.10 + 0.24 * angleFactor * g.progress) *
+            highlightStrength.clamp(0.0, 2.0);
+
+    if (opacity < 0.01) {
+      return;
+    }
+
+    canvas.save();
+    canvas.translate(g.mid.dx, g.mid.dy);
+    canvas.rotate(math.atan2(g.normal.dy, g.normal.dx));
+
+    final Paint paint = Paint()
+      ..shader = ui.Gradient.linear(
+        Offset(-width, 0),
+        Offset(width, 0),
+        [
+          Colors.transparent,
+          Colors.white.withOpacity(opacity),
+          Colors.transparent,
+        ],
+        const [0.0, 0.5, 1.0],
+      );
+
+    canvas.drawRect(
+      Rect.fromLTWH(-width, -size.height * 2, width * 2, size.height * 4),
+      paint,
+    );
+
+    canvas.restore();
+  }
+
   void _drawPaperContour(Canvas canvas, CurlGeometry g) {
     final Offset start = g.foldStart ?? g.mid - g.tangent * 600;
     final Offset end = g.foldEnd ?? g.mid + g.tangent * 600;
 
-    final Paint contourPaint = Paint()
-      ..color = Colors.black.withOpacity(0.10 + g.progress * 0.08)
+    final Paint shadowPaint = Paint()
+      ..color = Colors.black.withOpacity(0.14 + g.progress * 0.10)
       ..strokeWidth = 1.0
       ..style = PaintingStyle.stroke;
+    canvas.drawLine(start, end, shadowPaint);
 
-    canvas.drawLine(start, end, contourPaint);
+    final Offset offset = g.normal * -1.0;
+    final Paint edgePaint = Paint()
+      ..color = Colors.white.withOpacity(0.08 + g.progress * 0.06)
+      ..strokeWidth = 0.6
+      ..style = PaintingStyle.stroke;
+    canvas.drawLine(start + offset, end + offset, edgePaint);
   }
 
   void _drawIdleEdgeShadow(Canvas canvas, Size size) {

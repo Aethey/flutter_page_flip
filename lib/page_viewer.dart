@@ -289,10 +289,10 @@ class _PageViewerState extends State<PageViewer>
         ? corner + Offset(-18, useTopCorner ? 12 : -12)
         : corner + Offset(18, useTopCorner ? 12 : -12);
 
-    final double yOut = _viewportSize.height * 0.18;
+    final double yOut = _viewportSize.height * 0.10;
     final Offset end = direction == FlipDirection.next
-        ? Offset(-_viewportSize.width * 0.36, useTopCorner ? -yOut : _viewportSize.height + yOut)
-        : Offset(_viewportSize.width * 1.36, useTopCorner ? -yOut : _viewportSize.height + yOut);
+        ? Offset(-_viewportSize.width * 0.18, useTopCorner ? -yOut : _viewportSize.height + yOut)
+        : Offset(_viewportSize.width * 1.18, useTopCorner ? -yOut : _viewportSize.height + yOut);
 
     setState(() {
       _direction = direction;
@@ -317,11 +317,11 @@ class _PageViewerState extends State<PageViewer>
     }
 
     final bool useTopCorner = _activeCorner!.dy <= _viewportSize.height * 0.5;
-    final double yOut = _viewportSize.height * 0.18;
+    final double yOut = _viewportSize.height * 0.10;
 
     final Offset target = _direction == FlipDirection.next
-        ? Offset(-_viewportSize.width * 0.36, useTopCorner ? -yOut : _viewportSize.height + yOut)
-        : Offset(_viewportSize.width * 1.36, useTopCorner ? -yOut : _viewportSize.height + yOut);
+        ? Offset(-_viewportSize.width * 0.18, useTopCorner ? -yOut : _viewportSize.height + yOut)
+        : Offset(_viewportSize.width * 1.18, useTopCorner ? -yOut : _viewportSize.height + yOut);
 
     setState(() {
       _state = _direction == FlipDirection.next
@@ -694,7 +694,7 @@ class _PageViewerState extends State<PageViewer>
                                       painter: PageCurlPainter(
                                         currentImage: _pageImages[_currentPageIndex],
                                         belowImage: belowImage,
-                                        backFaceImage: belowImage,
+                                        backFaceImage: _pageImages[_currentPageIndex],
                                         geometry: geometry,
                                         shadowStrength: _shadowStrength,
                                         shadowWidth: _shadowWidth,

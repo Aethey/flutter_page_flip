@@ -5,18 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "example/page_demo",
+            "name": "example/vellum_engine",
             "request": "launch",
             "type": "dart"
         },
         {
-            "name": "example/page_demo (profile mode)",
+            "name": "example/vellum_engine (profile mode)",
             "request": "launch",
             "type": "dart",
             "flutterMode": "profile"
         },
         {
-            "name": "example/page_demo (release mode)",
+            "name": "example/vellum_engine (release mode)",
             "request": "launch",
             "type": "dart",
             "flutterMode": "release"

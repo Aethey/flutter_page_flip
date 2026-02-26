@@ -3,7 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-import 'package:page_demo/page_curl.dart';
+import 'package:vellum_engine/page_curl.dart';
 
 void main() {
   runApp(const ExampleApp());
@@ -18,7 +18,10 @@ void main() {
 
 /// 生成一张纯色渐变占位图（演示用；实际项目用真实图片 bytes）。
 Future<Uint8List> _generatePlaceholderImage(
-  int w, int h, Color from, Color to,
+  int w,
+  int h,
+  Color from,
+  Color to,
 ) async {
   final rec = ui.PictureRecorder();
   final c = Canvas(rec);
@@ -40,10 +43,16 @@ Future<Uint8List> _generatePlaceholderImage(
 /// 构建演示页面列表（包含纯文字页和图文混排页）。
 Future<List<BookPage>> _buildSamplePages() async {
   final Uint8List imgA = await _generatePlaceholderImage(
-    800, 400, const Color(0xFFB8D4E3), const Color(0xFF7EB5D6),
+    800,
+    400,
+    const Color(0xFFB8D4E3),
+    const Color(0xFF7EB5D6),
   );
   final Uint8List imgB = await _generatePlaceholderImage(
-    800, 500, const Color(0xFFE3C8A8), const Color(0xFFD4A06A),
+    800,
+    500,
+    const Color(0xFFE3C8A8),
+    const Color(0xFFD4A06A),
   );
 
   return <BookPage>[
@@ -51,7 +60,8 @@ Future<List<BookPage>> _buildSamplePages() async {
     const BookPage(
       pageNumber: 1,
       title: '风从纸页间穿过',
-      body: '午后四点，窗外的梧桐叶被一阵短风掀起，光线像细小的水纹落在桌角。'
+      body:
+          '午后四点，窗外的梧桐叶被一阵短风掀起，光线像细小的水纹落在桌角。'
           '我把手指按在书页边缘，听见纸纤维极轻的摩擦声，那声音像有人在远处慢慢折一封旧信。\n\n'
           '阅读最迷人的时刻，不是看见答案，而是看见问题在句子之间缓慢成形。'
           '每一页都像一扇半开的门，门后并不急着给出结论，只让你先站在门槛上，'
@@ -63,9 +73,7 @@ Future<List<BookPage>> _buildSamplePages() async {
       pageNumber: 2,
       contents: <PageContent>[
         const TitleBlock('城市的背面'),
-        const ParagraphBlock(
-          '清晨第一班地铁进站时，广告灯箱还没完全点亮，站台像一块尚未显影的底片。',
-        ),
+        const ParagraphBlock('清晨第一班地铁进站时，广告灯箱还没完全点亮，站台像一块尚未显影的底片。'),
         ImageBlock(bytes: imgA, height: 120, caption: '站台的晨光'),
         const ParagraphBlock(
           '有人把今天排成清单，有人把昨天折成口袋里的小纸条。'
@@ -93,7 +101,8 @@ Future<List<BookPage>> _buildSamplePages() async {
     const BookPage(
       pageNumber: 4,
       title: '雨夜与路灯',
-      body: '夜里十点半，雨开始变密。'
+      body:
+          '夜里十点半，雨开始变密。'
           '路灯把每一滴雨都照成短暂的金线，落地后立刻消失。'
           '我在便利店门口等雨小一点，听见冰柜压缩机低频运转，像远处海潮。\n\n'
           '那一刻忽然明白，所谓平静并不是环境安静，'
@@ -104,7 +113,8 @@ Future<List<BookPage>> _buildSamplePages() async {
     const BookPage(
       pageNumber: 5,
       title: '最后一页之前',
-      body: '真正难的不是结束，而是承认结束后仍然要继续。'
+      body:
+          '真正难的不是结束，而是承认结束后仍然要继续。'
           '书快读到尾声时，我们会下意识放慢速度，'
           '仿佛只要翻页更慢一点，故事就能多停留几分钟。\n\n'
           '但纸页终究会落下，灯也终究会熄灭。'
@@ -205,16 +215,17 @@ class _ExampleScreenState extends State<ExampleScreen> {
           children: <Widget>[
             _buildHeader(),
             Expanded(
-              child: _loading
-                  ? const Center(
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : PageCurlBookView(
-                      controller: _controller,
-                      onPageChanged: (int page) {
-                        setState(() => _currentPage = page);
-                      },
-                    ),
+              child:
+                  _loading
+                      ? const Center(
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                      : PageCurlBookView(
+                        controller: _controller,
+                        onPageChanged: (int page) {
+                          setState(() => _currentPage = page);
+                        },
+                      ),
             ),
             if (_showPanel) _buildTuningPanel(),
           ],
@@ -304,24 +315,59 @@ class _ExampleScreenState extends State<ExampleScreen> {
           child: SingleChildScrollView(
             child: Column(
               children: <Widget>[
-                _slider('shadowStrength', c.shadowStrength, 0, 1.8,
-                    (v) => _updateConfig((c) => c.copyWith(shadowStrength: v))),
-                _slider('shadowWidth', c.shadowWidth, 10, 120,
-                    (v) => _updateConfig((c) => c.copyWith(shadowWidth: v)),
-                    fmt: (v) => v.toStringAsFixed(0)),
-                _slider('highlightStrength', c.highlightStrength, 0, 1.6,
-                    (v) => _updateConfig((c) => c.copyWith(highlightStrength: v))),
-                _slider('spring', c.spring, 120, 900,
-                    (v) => _updateConfig((c) => c.copyWith(spring: v)),
-                    fmt: (v) => v.toStringAsFixed(0)),
-                _slider('damping', c.damping, 8, 48,
-                    (v) => _updateConfig((c) => c.copyWith(damping: v)),
-                    fmt: (v) => v.toStringAsFixed(1)),
-                _slider('commitThreshold', c.commitThreshold, 0.20, 0.85,
-                    (v) => _updateConfig((c) => c.copyWith(commitThreshold: v))),
-                _slider('curlRadius', c.curlRadiusFactor, 0.55, 1.85,
-                    (v) => _updateConfig((c) => c.copyWith(curlRadiusFactor: v)),
-                    fmt: (v) => '${v.toStringAsFixed(2)}x'),
+                _slider(
+                  'shadowStrength',
+                  c.shadowStrength,
+                  0,
+                  1.8,
+                  (v) => _updateConfig((c) => c.copyWith(shadowStrength: v)),
+                ),
+                _slider(
+                  'shadowWidth',
+                  c.shadowWidth,
+                  10,
+                  120,
+                  (v) => _updateConfig((c) => c.copyWith(shadowWidth: v)),
+                  fmt: (v) => v.toStringAsFixed(0),
+                ),
+                _slider(
+                  'highlightStrength',
+                  c.highlightStrength,
+                  0,
+                  1.6,
+                  (v) => _updateConfig((c) => c.copyWith(highlightStrength: v)),
+                ),
+                _slider(
+                  'spring',
+                  c.spring,
+                  120,
+                  900,
+                  (v) => _updateConfig((c) => c.copyWith(spring: v)),
+                  fmt: (v) => v.toStringAsFixed(0),
+                ),
+                _slider(
+                  'damping',
+                  c.damping,
+                  8,
+                  48,
+                  (v) => _updateConfig((c) => c.copyWith(damping: v)),
+                  fmt: (v) => v.toStringAsFixed(1),
+                ),
+                _slider(
+                  'commitThreshold',
+                  c.commitThreshold,
+                  0.20,
+                  0.85,
+                  (v) => _updateConfig((c) => c.copyWith(commitThreshold: v)),
+                ),
+                _slider(
+                  'curlRadius',
+                  c.curlRadiusFactor,
+                  0.55,
+                  1.85,
+                  (v) => _updateConfig((c) => c.copyWith(curlRadiusFactor: v)),
+                  fmt: (v) => '${v.toStringAsFixed(2)}x',
+                ),
               ],
             ),
           ),

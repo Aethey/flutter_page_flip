@@ -1,4 +1,4 @@
-package com.rya.page_demo
+package com.rya.vellum_engine
 
 import io.flutter.embedding.android.FlutterActivity
 

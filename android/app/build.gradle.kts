@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.rya.page_demo"
+    namespace = "com.rya.vellum_engine"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 

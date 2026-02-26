@@ -7,43 +7,220 @@ import 'geometry.dart';
 import 'page_curl_config.dart';
 import 'pages.dart';
 
+// ---------------------------------------------------------------------------
+// Page rasterization — converts BookPage → ui.Image for the curl painter.
+// ---------------------------------------------------------------------------
+
 Future<ui.Image> rasterizePageImage({
   required Size size,
   required BookPage page,
   required BookTypography typography,
+  required BookTheme theme,
 }) async {
   final ui.PictureRecorder recorder = ui.PictureRecorder();
   final Canvas canvas = Canvas(recorder);
   final Rect pageRect = Offset.zero & size;
 
-  final Paint basePaint = Paint()
-    ..shader = ui.Gradient.linear(
-      pageRect.topLeft,
-      pageRect.bottomRight,
-      const [Color(0xFFF8F1E3), Color(0xFFF4EAD8)],
-      const [0.0, 1.0],
-    );
-  canvas.drawRect(pageRect, basePaint);
+  _drawPageBackground(canvas, size, pageRect, theme);
 
-  final Paint vignettePaint = Paint()
-    ..shader = ui.Gradient.radial(
-      Offset(size.width * 0.12, size.height * 0.08),
-      size.longestSide * 1.1,
-      [Colors.white.withOpacity(0.20), Colors.transparent],
-      const [0.0, 1.0],
-    );
-  canvas.drawRect(pageRect, vignettePaint);
-
-  final Paint borderPaint = Paint()
-    ..style = PaintingStyle.stroke
-    ..strokeWidth = 1.4
-    ..color = Colors.black.withOpacity(0.10);
-  canvas.drawRect(pageRect.deflate(0.7), borderPaint);
+  if (theme.realisticTexture) {
+    _drawRealisticTexture(canvas, size, page.pageNumber);
+  }
 
   final double contentWidth = size.width - typography.horizontalPadding * 2;
   final double startX = typography.horizontalPadding;
   double cursorY = typography.topPadding;
 
+  if (page.contents != null && page.contents!.isNotEmpty) {
+    cursorY = await _renderBlocks(
+      canvas, page.contents!, typography, theme, size, contentWidth, startX, cursorY,
+    );
+  } else {
+    cursorY = _renderLegacyText(
+      canvas, page, typography, theme, contentWidth, startX, cursorY,
+    );
+  }
+
+  _drawPageNumber(canvas, page.pageNumber, typography, theme, size, contentWidth);
+  _drawEdgeShade(canvas, size, pageRect, theme);
+
+  return recorder
+      .endRecording()
+      .toImage(size.width.round(), size.height.round());
+}
+
+// ---------------------------------------------------------------------------
+// Background / footer / edge shade (shared by both paths).
+// ---------------------------------------------------------------------------
+
+void _drawPageBackground(Canvas canvas, Size size, Rect pageRect, BookTheme theme) {
+  final Color end = theme.pageColorEnd ?? theme.pageColor;
+  if (theme.pageColor == end) {
+    canvas.drawRect(pageRect, Paint()..color = theme.pageColor);
+  } else {
+    canvas.drawRect(
+      pageRect,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          pageRect.topLeft,
+          pageRect.bottomRight,
+          [theme.pageColor, end],
+          const [0.0, 1.0],
+        ),
+    );
+  }
+
+  if (theme.vignetteOpacity > 0.001) {
+    canvas.drawRect(
+      pageRect,
+      Paint()
+        ..shader = ui.Gradient.radial(
+          Offset(size.width * 0.12, size.height * 0.08),
+          size.longestSide * 1.1,
+          [
+            Colors.white.withOpacity(theme.vignetteOpacity),
+            Colors.transparent,
+          ],
+          const [0.0, 1.0],
+        ),
+    );
+  }
+
+  if (theme.borderColor != null && theme.borderWidth > 0) {
+    canvas.drawRect(
+      pageRect.deflate(theme.borderWidth * 0.5),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = theme.borderWidth
+        ..color = theme.borderColor!,
+    );
+  }
+}
+
+void _drawPageNumber(
+  Canvas canvas,
+  int pageNumber,
+  BookTypography typography,
+  BookTheme theme,
+  Size size,
+  double contentWidth,
+) {
+  final TextPainter p = TextPainter(
+    textDirection: TextDirection.ltr,
+    text: TextSpan(
+      text: '- $pageNumber -',
+      style: TextStyle(
+        fontSize: typography.pageNumberSize,
+        color: theme.pageNumberColor,
+        letterSpacing: 1.2,
+      ),
+    ),
+  )..layout(maxWidth: contentWidth);
+  final double y = size.height - typography.bottomPadding;
+  p.paint(canvas, Offset((size.width - p.width) * 0.5, y - p.height));
+}
+
+void _drawEdgeShade(Canvas canvas, Size size, Rect pageRect, BookTheme theme) {
+  if (theme.edgeShadeOpacity < 0.001) return;
+  canvas.drawRect(
+    pageRect,
+    Paint()
+      ..shader = ui.Gradient.linear(
+        Offset(size.width * 0.985, 0),
+        Offset(size.width, 0),
+        [Colors.black.withOpacity(theme.edgeShadeOpacity), Colors.transparent],
+        const [0.0, 1.0],
+      ),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Procedural paper texture (realistic theme only).
+// ---------------------------------------------------------------------------
+
+void _drawRealisticTexture(Canvas canvas, Size size, int seed) {
+  final math.Random rng = math.Random(seed * 7919);
+
+  // Paper grain — tiny dots with color variation.
+  final Paint grain = Paint()..style = PaintingStyle.fill;
+  for (int i = 0; i < 900; i++) {
+    final double x = rng.nextDouble() * size.width;
+    final double y = rng.nextDouble() * size.height;
+    final double r = 0.3 + rng.nextDouble() * 0.7;
+    if (rng.nextBool()) {
+      grain.color = Color.fromRGBO(0, 0, 0, 0.012 + rng.nextDouble() * 0.018);
+    } else {
+      grain.color = Color.fromRGBO(255, 255, 255, 0.018 + rng.nextDouble() * 0.025);
+    }
+    canvas.drawCircle(Offset(x, y), r, grain);
+  }
+
+  // Paper fibers — short thin lines.
+  final Paint fiber = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 0.3;
+  for (int i = 0; i < 70; i++) {
+    final double x = rng.nextDouble() * size.width;
+    final double y = rng.nextDouble() * size.height;
+    final double angle = rng.nextDouble() * math.pi;
+    final double len = 4 + rng.nextDouble() * 14;
+    fiber.color = Color.fromRGBO(
+      195 + rng.nextInt(45),
+      185 + rng.nextInt(35),
+      165 + rng.nextInt(25),
+      0.12 + rng.nextDouble() * 0.14,
+    );
+    canvas.drawLine(
+      Offset(x, y),
+      Offset(x + math.cos(angle) * len, y + math.sin(angle) * len),
+      fiber,
+    );
+  }
+
+  // Foxing / age spots.
+  for (int i = 0; i < 6; i++) {
+    final double cx = size.width * 0.1 + rng.nextDouble() * size.width * 0.8;
+    final double cy = size.height * 0.1 + rng.nextDouble() * size.height * 0.8;
+    final double rx = 2.5 + rng.nextDouble() * 5;
+    final double ry = 2.5 + rng.nextDouble() * 5;
+    canvas.drawOval(
+      Rect.fromCenter(center: Offset(cx, cy), width: rx * 2, height: ry * 2),
+      Paint()
+        ..color = Color.fromRGBO(
+          135 + rng.nextInt(45),
+          115 + rng.nextInt(35),
+          75 + rng.nextInt(35),
+          0.035 + rng.nextDouble() * 0.04,
+        ),
+    );
+  }
+
+  // Stronger edge darkening.
+  canvas.drawRect(
+    Offset.zero & size,
+    Paint()
+      ..shader = ui.Gradient.radial(
+        Offset(size.width * 0.5, size.height * 0.45),
+        size.longestSide * 0.65,
+        [Colors.transparent, Colors.black.withOpacity(0.055)],
+        const [0.55, 1.0],
+      ),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Legacy text-only rendering (title + body string).
+// ---------------------------------------------------------------------------
+
+double _renderLegacyText(
+  Canvas canvas,
+  BookPage page,
+  BookTypography typography,
+  BookTheme theme,
+  double contentWidth,
+  double startX,
+  double cursorY,
+) {
   final TextPainter titlePainter = TextPainter(
     textDirection: TextDirection.ltr,
     maxLines: 2,
@@ -53,7 +230,7 @@ Future<ui.Image> rasterizePageImage({
         fontSize: typography.titleSize,
         height: 1.25,
         fontWeight: FontWeight.w700,
-        color: const Color(0xFF27221A),
+        color: theme.titleColor,
         letterSpacing: 0.2,
       ),
     ),
@@ -70,46 +247,118 @@ Future<ui.Image> rasterizePageImage({
         style: TextStyle(
           fontSize: typography.bodySize,
           height: typography.lineHeight,
-          color: const Color(0xFF3A3328),
+          color: theme.bodyColor,
           letterSpacing: 0.1,
         ),
       ),
     )..layout(maxWidth: contentWidth);
-
     bodyPainter.paint(canvas, Offset(startX, cursorY));
     cursorY += bodyPainter.height + typography.paragraphSpacing;
   }
 
-  final TextPainter pageNoPainter = TextPainter(
-    textDirection: TextDirection.ltr,
-    text: TextSpan(
-      text: '- ${page.pageNumber} -',
-      style: TextStyle(
-        fontSize: typography.pageNumberSize,
-        color: const Color(0xFF6C6454),
-        letterSpacing: 1.2,
-      ),
-    ),
-  )..layout(maxWidth: contentWidth);
+  return cursorY;
+}
 
-  final double pageNoY = size.height - typography.bottomPadding;
-  pageNoPainter.paint(
-    canvas,
-    Offset((size.width - pageNoPainter.width) * 0.5, pageNoY - pageNoPainter.height),
-  );
+// ---------------------------------------------------------------------------
+// Block-based rendering (rich content: text + images + spacing).
+// ---------------------------------------------------------------------------
 
-  final Paint edgeShadePaint = Paint()
-    ..shader = ui.Gradient.linear(
-      Offset(size.width * 0.985, 0),
-      Offset(size.width, 0),
-      [Colors.black.withOpacity(0.07), Colors.transparent],
-      const [0.0, 1.0],
-    );
-  canvas.drawRect(pageRect, edgeShadePaint);
+Future<double> _renderBlocks(
+  Canvas canvas,
+  List<PageContent> blocks,
+  BookTypography typography,
+  BookTheme theme,
+  Size size,
+  double contentWidth,
+  double startX,
+  double cursorY,
+) async {
+  final double maxY = size.height - typography.bottomPadding - 20;
 
-  return recorder
-      .endRecording()
-      .toImage(size.width.round(), size.height.round());
+  for (final PageContent block in blocks) {
+    if (cursorY >= maxY) break;
+
+    switch (block) {
+      case TitleBlock(:final text):
+        final TextPainter p = TextPainter(
+          textDirection: TextDirection.ltr,
+          maxLines: 2,
+          text: TextSpan(
+            text: text,
+            style: TextStyle(
+              fontSize: typography.titleSize,
+              height: 1.25,
+              fontWeight: FontWeight.w700,
+              color: theme.titleColor,
+              letterSpacing: 0.2,
+            ),
+          ),
+        )..layout(maxWidth: contentWidth);
+        p.paint(canvas, Offset(startX, cursorY));
+        cursorY += p.height + typography.paragraphSpacing;
+
+      case ParagraphBlock(:final text):
+        final TextPainter p = TextPainter(
+          textDirection: TextDirection.ltr,
+          text: TextSpan(
+            text: text,
+            style: TextStyle(
+              fontSize: typography.bodySize,
+              height: typography.lineHeight,
+              color: theme.bodyColor,
+              letterSpacing: 0.1,
+            ),
+          ),
+        )..layout(maxWidth: contentWidth);
+        p.paint(canvas, Offset(startX, cursorY));
+        cursorY += p.height + typography.paragraphSpacing;
+
+      case ImageBlock(:final bytes, :final height, :final caption):
+        final ui.Codec codec = await ui.instantiateImageCodec(bytes);
+        final ui.FrameInfo frame = await codec.getNextFrame();
+        final ui.Image img = frame.image;
+
+        final double imgAspect = img.width / img.height;
+        final double drawW = contentWidth;
+        final double drawH = height ?? (drawW / imgAspect);
+        final Rect src = Rect.fromLTWH(
+          0, 0, img.width.toDouble(), img.height.toDouble(),
+        );
+        final Rect dst = Rect.fromLTWH(startX, cursorY, drawW, drawH);
+
+        canvas.save();
+        canvas.clipRect(dst);
+        canvas.drawImageRect(img, src, dst, Paint()..filterQuality = FilterQuality.medium);
+        canvas.restore();
+        img.dispose();
+
+        cursorY += drawH + 6;
+
+        if (caption != null && caption.isNotEmpty) {
+          final TextPainter cp = TextPainter(
+            textDirection: TextDirection.ltr,
+            text: TextSpan(
+              text: caption,
+              style: TextStyle(
+                fontSize: typography.bodySize - 2,
+                height: typography.lineHeight,
+                color: theme.captionColor,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          )..layout(maxWidth: contentWidth);
+          cp.paint(canvas, Offset(startX, cursorY));
+          cursorY += cp.height + typography.paragraphSpacing;
+        } else {
+          cursorY += typography.paragraphSpacing;
+        }
+
+      case SpacingBlock(:final height):
+        cursorY += height;
+    }
+  }
+
+  return cursorY;
 }
 
 void disposePageImages(Iterable<ui.Image> images) {
@@ -127,6 +376,7 @@ class PageCurlPainter extends CustomPainter {
     required this.shadowStrength,
     required this.shadowWidth,
     required this.highlightStrength,
+    required this.backFaceTint,
   });
 
   final ui.Image currentImage;
@@ -137,6 +387,7 @@ class PageCurlPainter extends CustomPainter {
   final double shadowStrength;
   final double shadowWidth;
   final double highlightStrength;
+  final Color backFaceTint;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -185,7 +436,7 @@ class PageCurlPainter extends CustomPainter {
     final double tintOpacity = (0.45 - t * 0.20).clamp(0.10, 0.50);
     canvas.drawRect(
       pageRect,
-      Paint()..color = Color.fromRGBO(235, 222, 200, tintOpacity),
+      Paint()..color = backFaceTint.withOpacity(tintOpacity),
     );
 
     _drawBackFaceTone(canvas, size, g, amount: 0.8 + t * 0.5);

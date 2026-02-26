@@ -178,6 +178,7 @@ class _PageCurlBookViewState extends State<PageCurlBookView>
           size: size,
           page: page,
           typography: _cfg.typography,
+          theme: _cfg.theme,
         ),
       );
     }
@@ -494,11 +495,12 @@ class _PageCurlBookViewState extends State<PageCurlBookView>
                               shadowStrength: _cfg.shadowStrength,
                               shadowWidth: _cfg.shadowWidth,
                               highlightStrength: _cfg.highlightStrength,
+                              backFaceTint: _cfg.theme.effectiveBackFaceTint,
                             ),
                           ),
                         )
                       : Container(
-                          color: const Color(0xFFF4EAD8),
+                          color: _cfg.theme.pageColor,
                           alignment: Alignment.center,
                           child: const CircularProgressIndicator(
                             strokeWidth: 2,

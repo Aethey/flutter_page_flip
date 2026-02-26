@@ -5,18 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "page_demo",
+            "name": "example/page_demo",
             "request": "launch",
             "type": "dart"
         },
         {
-            "name": "page_demo (profile mode)",
+            "name": "example/page_demo (profile mode)",
             "request": "launch",
             "type": "dart",
             "flutterMode": "profile"
         },
         {
-            "name": "page_demo (release mode)",
+            "name": "example/page_demo (release mode)",
             "request": "launch",
             "type": "dart",
             "flutterMode": "release"

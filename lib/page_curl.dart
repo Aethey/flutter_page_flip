@@ -13,5 +13,6 @@
 library page_curl;
 
 export 'src/page_curl_book.dart' show PageCurlBookView, PageCurlController;
-export 'src/page_curl_config.dart' show PageCurlConfig, BookTypography;
-export 'src/pages.dart' show BookPage;
+export 'src/page_curl_config.dart' show PageCurlConfig, BookTypography, BookTheme;
+export 'src/pages.dart'
+    show BookPage, PageContent, TitleBlock, ParagraphBlock, ImageBlock, SpacingBlock;

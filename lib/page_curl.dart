@@ -12,14 +12,18 @@
 /// ```
 library page_curl;
 
-export 'src/page_curl_book.dart' show PageCurlBookView, PageCurlController;
+export 'src/page_curl_book.dart'
+    show PageCurlBookView, PageCurlController, PageCurlPageBuilder;
 export 'src/page_curl_config.dart'
     show PageCurlConfig, BookTypography, BookTheme;
+export 'src/document.dart' show BookDocument;
 export 'src/pages.dart'
     show
         BookPage,
         PageContent,
         TitleBlock,
         ParagraphBlock,
+        QuoteBlock,
+        BulletListBlock,
         ImageBlock,
         SpacingBlock;

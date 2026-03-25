@@ -1,32 +1,33 @@
 # vellum_engine
 
-`vellum_engine` 是一个面向 Flutter 的翻页动画 SDK，重点提供更接近真实纸张的卷页体验，同时兼顾阅读场景下的文本选择、复制、图片混排和自动分页。
+Language / 言語 / 语言:
+[中文](#中文) | [日本語](#日本語) | [English](#english)
 
-当前这版更适合：
+---
 
-- 小说阅读器、图文阅读器
-- 画册、绘本、相册式内容展示
-- 需要“卷页感”而不是普通 `PageView` 的内容场景
+## 中文
 
-## 功能特性
+`vellum_engine` 是一个面向 Flutter 的翻页动画 SDK，提供更接近真实纸张的卷页体验，同时兼顾阅读场景下的文本选择、复制、图片混排和自动分页。
+
+### 功能特性
 
 - 支持点击边缘翻页和拖拽翻页
 - 支持角落卷起和中段水平卷起
-- 支持真实文本页面，静止态可选中文本并复制
-- 支持图文混排
-- 支持根据可用区域自动分页
+- 支持静止态真实文本页，可长按选择并复制文本
+- 支持图片、标题、正文、引用、列表、间距块
+- 支持自动分页
 - 支持手动分页、自动分页、builder 三种接入模式
 - 支持程序化翻页：上一页、下一页、跳转、动画跳转
-- 支持主题、字体、阴影、阻尼等配置
+- 支持主题、排版、阴影、阻尼等配置
 
-## 安装方式
+### 安装方式
 
-当前仓库 `publish_to: none`，适合先以本地依赖接入。
+当前仓库 `publish_to: none`，建议先用本地依赖：
 
 ```yaml
 dependencies:
   vellum_engine:
-    path: ../vellum_engine-main
+    path: ../vellum_engine
 ```
 
 然后执行：
@@ -35,29 +36,15 @@ dependencies:
 flutter pub get
 ```
 
-## 快速开始
-
-先导入：
+### 快速开始
 
 ```dart
 import 'package:vellum_engine/page_curl.dart';
-```
 
-最简单的用法是先创建 `PageCurlController`，再把 `PageCurlBookView` 放进页面里：
-
-```dart
 final controller = PageCurlController(
   pages: const <BookPage>[
-    BookPage(
-      pageNumber: 1,
-      title: '第一页',
-      body: '这里是正文内容。',
-    ),
-    BookPage(
-      pageNumber: 2,
-      title: '第二页',
-      body: '这里是第二页正文内容。',
-    ),
+    BookPage(pageNumber: 1, title: '第一页', body: '这里是正文内容。'),
+    BookPage(pageNumber: 2, title: '第二页', body: '这里是第二页正文内容。'),
   ],
   config: const PageCurlConfig(),
 );
@@ -70,11 +57,11 @@ PageCurlBookView(
 );
 ```
 
-## 三种接入模式
+### 三种接入模式
 
-### 1. 手动分页模式
+#### 1. 手动分页
 
-如果你的主 App 已经自己分页完成，可以直接传 `List<BookPage>`：
+适合主 App 已经分页完成的场景：
 
 ```dart
 final controller = PageCurlController(
@@ -85,17 +72,9 @@ final controller = PageCurlController(
 );
 ```
 
-适合：
+#### 2. 自动分页
 
-- 已经有分页引擎
-- 漫画、绘本、短内容展示
-- 服务端已经切页的数据
-
-### 2. 自动分页模式
-
-如果你希望 SDK 根据屏幕可用区域自动拆页，使用 `BookDocument`。
-
-纯文本快捷写法：
+适合主 App 提供原始文本或图文内容，由 SDK 按屏幕可用区域自动拆页：
 
 ```dart
 final controller = PageCurlController.document(
@@ -106,7 +85,7 @@ final controller = PageCurlController.document(
 );
 ```
 
-图文混排写法：
+图文混排示例：
 
 ```dart
 final controller = PageCurlController.document(
@@ -125,21 +104,14 @@ final controller = PageCurlController.document(
         height: 140,
         caption: '图片说明',
       ),
-      const ParagraphBlock('这里是后续正文。'),
     ],
   ),
 );
 ```
 
-适合：
+#### 3. Builder 模式
 
-- 长文本阅读
-- 图文混排内容
-- 主 App 只提供原始内容，由 SDK 负责分页
-
-### 3. Builder 模式
-
-如果你的页面数据来自数据库、接口或按需加载，可以使用 builder 模式：
+适合大量页面按需加载：
 
 ```dart
 final controller = PageCurlController.builder(
@@ -154,53 +126,9 @@ final controller = PageCurlController.builder(
 );
 ```
 
-适合：
+### 内容模型
 
-- 大量页面按需加载
-- 远程数据源
-- 希望自行控制页面构造逻辑
-
-## 页面内容模型
-
-### `BookPage`
-
-手动分页时使用。
-
-```dart
-const BookPage(
-  pageNumber: 1,
-  title: '标题',
-  body: '正文',
-)
-```
-
-或者使用富内容版本：
-
-```dart
-const BookPage.rich(
-  pageNumber: 1,
-  contents: <PageContent>[
-    TitleBlock('标题'),
-    ParagraphBlock('正文'),
-  ],
-)
-```
-
-### `BookDocument`
-
-自动分页时使用，表示“还没有被切页的一整段内容”。
-
-```dart
-BookDocument(
-  contents: <PageContent>[
-    TitleBlock('标题'),
-    ParagraphBlock('正文'),
-  ],
-  startPageNumber: 1,
-)
-```
-
-### `PageContent` 支持的内容块
+`PageContent` 当前支持：
 
 - `TitleBlock`
 - `ParagraphBlock`
@@ -219,13 +147,9 @@ ImageBlock(
 )
 ```
 
-注意：`ImageBlock` 目前接收的是 `Uint8List bytes`，也就是已经加载好的图片二进制数据。
+注意：`ImageBlock` 目前接收 `Uint8List bytes`。
 
-## 控制器 API
-
-`PageCurlController` 负责内容和程序化翻页控制。
-
-常用方法：
+### 控制器 API
 
 ```dart
 controller.nextPage();
@@ -241,7 +165,7 @@ controller.totalPages;
 controller.config;
 ```
 
-你也可以在运行时动态修改配置：
+运行时动态调整：
 
 ```dart
 controller.config = controller.config.copyWith(
@@ -251,9 +175,9 @@ controller.config = controller.config.copyWith(
 );
 ```
 
-## 配置项说明
+### 配置项
 
-`PageCurlConfig` 主要包含以下几类配置：
+`PageCurlConfig` 常用配置包括：
 
 - 动画手感：`spring`、`damping`、`commitThreshold`
 - 卷页形态：`curlRadiusFactor`
@@ -263,26 +187,6 @@ controller.config = controller.config.copyWith(
 - 排版样式：`typography`
 - 页面主题：`theme`
 
-示例：
-
-```dart
-const PageCurlConfig(
-  shadowStrength: 0.90,
-  highlightStrength: 0.70,
-  curlRadiusFactor: 1.18,
-  pageRatio: 0.70,
-  edgeZoneWidth: 84,
-  theme: BookTheme.paperYellow,
-  typography: BookTypography(
-    horizontalPadding: 28,
-    topPadding: 34,
-    bottomPadding: 28,
-    titleSize: 26,
-    bodySize: 16,
-  ),
-)
-```
-
 内置主题：
 
 - `BookTheme.white`
@@ -291,73 +195,281 @@ const PageCurlConfig(
 - `BookTheme.paperYellow`
 - `BookTheme.realistic`
 
-## 阅读交互说明
+### 阅读交互说明
 
-- 静止态页面使用真实文本 widget，支持长按选择和复制文本
-- 翻页动画开始后，会切到卷页动画层
+- 静止态页面使用真实文本 widget，支持长按选择和复制
+- 翻页开始后切到卷页动画层
 - 当前页优先使用真实可见页快照
-- 目标页优先使用真实 widget 页，以减少动画页与落地页的视觉切换
+- 目标页优先使用真实 widget 页，以减少动画页与落地页的突兀切换
 
-这意味着：
-
-- 文本阅读场景下，体验会比“纯截图翻页”更自然
-- 但真正卷起的 flap 部分仍然是动画纹理层，这是为了保留卷页效果
-
-## 适合什么场景
+### 适合什么场景
 
 推荐：
 
 - 小说阅读器
 - 长文阅读
-- 图文卡片阅读
+- 图文阅读
 - 绘本、画册、相册
 
-不推荐直接拿来当完整电子书系统的全部能力：
+当前不包含：
 
-- 目前不包含 EPUB 解析
-- 目前不包含 Markdown/HTML 转内容块适配层
-- 目前不包含批注、高亮、目录、搜索等完整阅读器能力
+- EPUB 解析
+- Markdown / HTML 转换层
+- 批注、高亮、目录、搜索等完整阅读器能力
 
-更准确地说，这个仓库当前更像是“可集成的翻页阅读组件”，不是“全功能电子书内核”。
+### 示例
 
-## 一个完整示例
+完整示例见：
 
-仓库已经提供了完整示例：
+- [example/lib/main.dart](./example/lib/main.dart)
 
-- [example/lib/main.dart](/Users/ryu_japanpaymottogroup/WorkSpace/rya/vellum_engine-main/example/lib/main.dart)
+### License
 
-示例里演示了：
+MIT License. Full text: [LICENSE](./LICENSE)
 
-- 异步准备图片
-- 构造 `BookDocument`
-- 自动分页
-- 页面选择复制
-- 控制器按钮翻页
-- 动态调节翻页参数
+---
 
-## 建议接入方式
+## 日本語
 
-如果你在做阅读软件，建议优先按下面思路接入：
+`vellum_engine` は Flutter 向けのページカール SDK です。紙をめくるようなアニメーションに加えて、読書向けのテキスト選択、コピー、画像混在、そして自動ページ分割をサポートします。
 
-1. 主 App 负责拿到原始内容
-2. 将内容转换成 `BookDocument` 或 `BookPage`
-3. 使用 `PageCurlController` 管理内容和翻页
-4. 把 `PageCurlBookView` 嵌入你的阅读页
-5. 用 `onPageChanged` 同步阅读进度
+### 特徴
 
-如果你的内容是长文本，优先用 `BookDocument`。  
-如果你的内容已经分页，优先用 `List<BookPage>`。  
-如果你的内容量很大且按需加载，优先用 builder 模式。
+- タップとドラッグによるページめくり
+- 角からのカールと中央付近の水平カール
+- 静止時は実際のテキスト Widget を表示し、選択とコピーに対応
+- 画像、見出し、本文、引用、箇条書き、余白ブロックに対応
+- 自動ページ分割に対応
+- 手動ページ、ドキュメント自動分割、builder の 3 モードを提供
+- プログラム制御でページ送り可能
 
-## 当前限制
+### 導入
 
-- 图片需要先转成 `Uint8List`
-- 富文本块模型还比较轻量
-- 目前主要面向横向单页阅读
-- 超复杂排版需求仍建议主 App 自己做更强的排版层
+```yaml
+dependencies:
+  vellum_engine:
+    path: ../vellum_engine
+```
 
-## License
+```bash
+flutter pub get
+```
 
-MIT License。
+### クイックスタート
 
+```dart
+import 'package:vellum_engine/page_curl.dart';
 
+final controller = PageCurlController(
+  pages: const <BookPage>[
+    BookPage(pageNumber: 1, title: '1ページ目', body: '本文'),
+    BookPage(pageNumber: 2, title: '2ページ目', body: '本文'),
+  ],
+);
+
+PageCurlBookView(controller: controller);
+```
+
+### 3つの利用モード
+
+#### 1. 手動ページモード
+
+すでにページ分割済みのデータを渡す場合：
+
+```dart
+final controller = PageCurlController(
+  pages: const <BookPage>[
+    BookPage(pageNumber: 1, title: 'Chapter 1', body: '...'),
+  ],
+);
+```
+
+#### 2. 自動ページ分割モード
+
+画面サイズに応じて SDK にページ分割させる場合：
+
+```dart
+final controller = PageCurlController.document(
+  document: BookDocument.text(
+    title: '第1章',
+    text: longText,
+  ),
+);
+```
+
+#### 3. Builder モード
+
+大量ページを遅延ロードする場合：
+
+```dart
+final controller = PageCurlController.builder(
+  pageCount: 100,
+  pageBuilder: (int index) async {
+    return BookPage(
+      pageNumber: index + 1,
+      title: 'Page ${index + 1}',
+      body: 'Lazy loaded content',
+    );
+  },
+);
+```
+
+### コンテンツブロック
+
+対応している `PageContent`：
+
+- `TitleBlock`
+- `ParagraphBlock`
+- `QuoteBlock`
+- `BulletListBlock`
+- `ImageBlock`
+- `SpacingBlock`
+
+### Controller API
+
+```dart
+controller.nextPage();
+controller.previousPage();
+controller.jumpToPage(10);
+controller.animateToPage(10);
+```
+
+### 備考
+
+- 静止状態ではテキスト選択が可能です
+- めくり中はアニメーションレイヤーに切り替わります
+- 現在ページは表示中の実ページスナップショットを優先して使用します
+- 目標ページは可能な限り実 Widget ページを使い、切り替えの違和感を抑えています
+
+### サンプル
+
+- [example/lib/main.dart](./example/lib/main.dart)
+
+### License
+
+MIT License. Full text: [LICENSE](./LICENSE)
+
+---
+
+## English
+
+`vellum_engine` is a Flutter page-curl SDK designed for realistic page turning while still supporting reading-oriented features such as text selection, copy, mixed image/text content, and automatic pagination.
+
+### Features
+
+- Edge tap and drag page turning
+- Corner curl and middle horizontal curl
+- Real text widgets while idle, with text selection and copy support
+- Rich content blocks for text and images
+- Automatic pagination based on available viewport size
+- Three integration modes: manual pages, auto-paginated document, and builder
+- Programmatic page control
+- Configurable theme, typography, shadows, and motion
+
+### Installation
+
+This repository is currently `publish_to: none`, so local path dependency is recommended:
+
+```yaml
+dependencies:
+  vellum_engine:
+    path: ../vellum_engine
+```
+
+```bash
+flutter pub get
+```
+
+### Quick Start
+
+```dart
+import 'package:vellum_engine/page_curl.dart';
+
+final controller = PageCurlController(
+  pages: const <BookPage>[
+    BookPage(pageNumber: 1, title: 'Page 1', body: 'Body text'),
+    BookPage(pageNumber: 2, title: 'Page 2', body: 'Body text'),
+  ],
+);
+
+PageCurlBookView(controller: controller);
+```
+
+### Integration Modes
+
+#### 1. Manual Page Mode
+
+Use this when your app already has paginated data:
+
+```dart
+final controller = PageCurlController(
+  pages: const <BookPage>[
+    BookPage(pageNumber: 1, title: 'Chapter 1', body: '...'),
+  ],
+);
+```
+
+#### 2. Auto Pagination Mode
+
+Use `BookDocument` when you want the SDK to paginate content automatically:
+
+```dart
+final controller = PageCurlController.document(
+  document: BookDocument.text(
+    title: 'Chapter 1',
+    text: longText,
+  ),
+);
+```
+
+#### 3. Builder Mode
+
+Use this for large datasets or lazy loading:
+
+```dart
+final controller = PageCurlController.builder(
+  pageCount: 100,
+  pageBuilder: (int index) async {
+    return BookPage(
+      pageNumber: index + 1,
+      title: 'Page ${index + 1}',
+      body: 'Lazy loaded content',
+    );
+  },
+);
+```
+
+### Content Blocks
+
+Supported `PageContent` types:
+
+- `TitleBlock`
+- `ParagraphBlock`
+- `QuoteBlock`
+- `BulletListBlock`
+- `ImageBlock`
+- `SpacingBlock`
+
+### Controller API
+
+```dart
+controller.nextPage();
+controller.previousPage();
+controller.jumpToPage(10);
+controller.animateToPage(10);
+```
+
+### Notes
+
+- Idle pages use real text widgets, so users can select and copy text
+- Once page turning starts, the SDK switches to the animation layer
+- The current page prefers a snapshot captured from the visible live page
+- The target page prefers a live widget page whenever possible, reducing the visual jump between animation and settled state
+
+### Example
+
+- [example/lib/main.dart](./example/lib/main.dart)
+
+### License
+
+MIT License. Full text: [LICENSE](./LICENSE)

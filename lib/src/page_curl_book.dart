@@ -65,6 +65,18 @@ class PageCurlBookView extends StatefulWidget {
 
 enum _Flip { idle, dragging, toNext, back, toPrev }
 
+class _DragIntent {
+  const _DragIntent({
+    required this.direction,
+    required this.position,
+    required this.top,
+  });
+
+  final FlipDirection direction;
+  final Offset position;
+  final bool top;
+}
+
 class _PageCurlBookViewState extends State<PageCurlBookView>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ac;
@@ -86,6 +98,7 @@ class _PageCurlBookViewState extends State<PageCurlBookView>
   Offset? _corner;
   Offset? _animFrom;
   Offset? _animTo;
+  _DragIntent? _pendingDrag;
   int _animToken = 0;
 
   PageCurlConfig get _cfg => widget.controller.config;
@@ -148,6 +161,22 @@ class _PageCurlBookViewState extends State<PageCurlBookView>
       (a.width - b.width).abs() <= tol && (a.height - b.height).abs() <= tol;
 
   double get _curlR => _vp.width <= 0 ? 1 : _vp.width * _cfg.curlRadiusFactor;
+
+  double get _dragOverscrollX => _vp.width * 0.08;
+
+  double get _dragOverscrollY => _vp.height * 0.06;
+
+  double _edgeZoneWidth() {
+    final double scaled = math.max(_cfg.edgeZoneWidth, _vp.width * 0.18);
+    final double maxWidth = math.max(72, _vp.width * 0.28);
+    return scaled.clamp(72, maxWidth).toDouble();
+  }
+
+  double _tapZoneWidth() {
+    final double scaled = math.max(_edgeZoneWidth(), _vp.width * 0.24);
+    final double maxWidth = math.max(96, _vp.width * 0.32);
+    return scaled.clamp(96, maxWidth).toDouble();
+  }
 
   // ---- animation tick -----------------------------------------------------
 
@@ -213,35 +242,79 @@ class _PageCurlBookViewState extends State<PageCurlBookView>
 
   // ---- gestures -----------------------------------------------------------
 
-  void _beginDrag(FlipDirection d, Offset pos) {
+  _DragIntent? _dragIntentFor(Offset position) {
+    if (_vp.isEmpty) return null;
+    final double edgeZone = _edgeZoneWidth();
+    final bool top = position.dy <= _vp.height * 0.5;
+    if (position.dx >= _vp.width - edgeZone && _canNext) {
+      return _DragIntent(
+        direction: FlipDirection.next,
+        position: position,
+        top: top,
+      );
+    }
+    if (position.dx <= edgeZone && _canPrev) {
+      return _DragIntent(
+        direction: FlipDirection.prev,
+        position: position,
+        top: top,
+      );
+    }
+    return null;
+  }
+
+  void _beginDrag(_DragIntent intent, {Offset? currentPosition}) {
     _ac.stop();
     _animToken++;
-    final bool top = pos.dy < _vp.height * 0.5;
-    final Offset c = _cornerFor(d, top: top);
+    final Offset start = clampPointToPage(
+      currentPosition ?? intent.position,
+      _vp,
+      overscrollX: _dragOverscrollX,
+      overscrollY: _dragOverscrollY,
+    );
+    final Offset seed = clampPointToPage(
+      intent.position,
+      _vp,
+      overscrollX: _dragOverscrollX,
+      overscrollY: _dragOverscrollY,
+    );
+    final Offset c = _cornerFor(intent.direction, top: intent.top);
+    final int now = nowMicros();
     _vel.reset();
-    _vel.addSample(pos, nowMicros());
+    _vel.addSample(seed, now - const Duration(milliseconds: 16).inMicroseconds);
+    _vel.addSample(start, now);
     setState(() {
-      _dir = d;
+      _dir = intent.direction;
       _corner = c;
-      _drag = clampPointToPage(pos, _vp);
+      _drag = start;
       _state = _Flip.dragging;
     });
   }
 
+  void _onPanDown(DragDownDetails det) {
+    if (_isAnimating || _imgs.isEmpty || _rasterizing) {
+      _pendingDrag = null;
+      return;
+    }
+    _pendingDrag = _dragIntentFor(det.localPosition);
+  }
+
   void _onPanStart(DragStartDetails det) {
     if (_isAnimating || _imgs.isEmpty || _rasterizing) return;
-    final Offset p = det.localPosition;
-    final double ez = _cfg.edgeZoneWidth;
-    if (p.dx >= _vp.width - ez && _canNext) {
-      _beginDrag(FlipDirection.next, p);
-    } else if (p.dx <= ez && _canPrev) {
-      _beginDrag(FlipDirection.prev, p);
-    }
+    final _DragIntent? intent = _pendingDrag ?? _dragIntentFor(det.localPosition);
+    _pendingDrag = null;
+    if (intent == null) return;
+    _beginDrag(intent, currentPosition: det.localPosition);
   }
 
   void _onPanUpdate(DragUpdateDetails det) {
     if (_state != _Flip.dragging || _dir == null) return;
-    final Offset c = clampPointToPage(det.localPosition, _vp);
+    final Offset c = clampPointToPage(
+      det.localPosition,
+      _vp,
+      overscrollX: _dragOverscrollX,
+      overscrollY: _dragOverscrollY,
+    );
     _vel.addSample(c, nowMicros());
     setState(() => _drag = c);
   }
@@ -252,7 +325,13 @@ class _PageCurlBookViewState extends State<PageCurlBookView>
         _corner == null ||
         _drag == null) return;
 
-    final Offset v = _vel.estimateVelocity();
+    _pendingDrag = null;
+    final Offset v = Offset.lerp(
+          _vel.estimateVelocity(),
+          det.velocity.pixelsPerSecond,
+          0.55,
+        ) ??
+        det.velocity.pixelsPerSecond;
     final CurlGeometry g = computeCurlGeometry(
       size: _vp,
       dragPoint: _drag!,
@@ -274,15 +353,18 @@ class _PageCurlBookViewState extends State<PageCurlBookView>
   }
 
   void _onPanCancel() {
+    _pendingDrag = null;
     if (_state == _Flip.dragging) _animateBack(0);
   }
 
   void _onTapUp(TapUpDetails det) {
     if (_isAnimating || _state != _Flip.idle || _imgs.isEmpty) return;
+    _pendingDrag = null;
     final Offset p = det.localPosition;
-    if (p.dx >= _vp.width * 0.8 && _canNext) {
+    final double tapZone = _tapZoneWidth();
+    if (p.dx >= _vp.width - tapZone && _canNext) {
       _startTapFlip(FlipDirection.next, p.dy);
-    } else if (p.dx <= _vp.width * 0.2 && _canPrev) {
+    } else if (p.dx <= tapZone && _canPrev) {
       _startTapFlip(FlipDirection.prev, p.dy);
     }
   }
@@ -396,6 +478,7 @@ class _PageCurlBookViewState extends State<PageCurlBookView>
     _drag = null;
     _animFrom = null;
     _animTo = null;
+    _pendingDrag = null;
     _vel.reset();
     if (!keepPage) _page = 0;
   }
@@ -410,15 +493,18 @@ class _PageCurlBookViewState extends State<PageCurlBookView>
         _vp.isEmpty) return null;
 
     final bool overshoot =
-        _state == _Flip.toNext || _state == _Flip.toPrev;
+        _state == _Flip.toNext ||
+        _state == _Flip.toPrev ||
+        _state == _Flip.dragging;
     return computeCurlGeometry(
       size: _vp,
       dragPoint: _drag!,
       corner: _corner!,
       direction: _dir!,
       curlRadius: _curlR,
-      overscrollX: overshoot ? _vp.width * 0.42 : 0,
-      overscrollY: overshoot ? _vp.height * 0.20 : 0,
+      overscrollX: overshoot ? math.max(_dragOverscrollX, _vp.width * 0.42) : 0,
+      overscrollY:
+          overshoot ? math.max(_dragOverscrollY, _vp.height * 0.20) : 0,
     );
   }
 
@@ -467,7 +553,7 @@ class _PageCurlBookViewState extends State<PageCurlBookView>
                 BoxShadow(
                   blurRadius: 28,
                   spreadRadius: 2,
-                  color: Colors.black.withOpacity(0.35),
+                  color: Colors.black.withValues(alpha: 0.35),
                   offset: const Offset(0, 14),
                 ),
               ],
@@ -478,6 +564,7 @@ class _PageCurlBookViewState extends State<PageCurlBookView>
               child: ClipRect(
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
+                  onPanDown: _onPanDown,
                   onPanStart: _onPanStart,
                   onPanUpdate: _onPanUpdate,
                   onPanEnd: _onPanEnd,

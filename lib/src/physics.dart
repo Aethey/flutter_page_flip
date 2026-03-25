@@ -87,12 +87,15 @@ InertiaDecision decideInertia({
       direction == FlipDirection.next ? -velocityX : velocityX;
 
   final double velocityProgressBoost =
-      (directionalVelocity / 2600.0).clamp(-0.35, 0.35);
+      (directionalVelocity / 2200.0).clamp(-0.40, 0.40);
   final double effectiveProgress =
       (progress + velocityProgressBoost).clamp(0.0, 1.0);
 
   final bool commit =
-      effectiveProgress >= commitThreshold || directionalVelocity > 900;
+      effectiveProgress >= commitThreshold ||
+      directionalVelocity > 720 ||
+      (directionalVelocity > 280 &&
+          effectiveProgress >= commitThreshold * 0.78);
 
   final Duration duration = computeInertiaDuration(
     progress: progress,

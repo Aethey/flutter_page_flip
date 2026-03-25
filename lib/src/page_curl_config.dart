@@ -165,12 +165,12 @@ class PageCurlConfig {
     this.highlightStrength = 0.70,
     this.spring = 420,
     this.damping = 24,
-    this.commitThreshold = 0.44,
+    this.commitThreshold = 0.38,
     this.curlRadiusFactor = 1.18,
     this.typography = const BookTypography(),
     this.theme = BookTheme.paperYellow,
     this.pageRatio = 0.70,
-    this.edgeZoneWidth = 62,
+    this.edgeZoneWidth = 84,
   });
 
   final double shadowStrength;

@@ -40,8 +40,8 @@ Future<Uint8List> _generatePlaceholderImage(
   return data!.buffer.asUint8List();
 }
 
-/// 构建演示页面列表（包含纯文字页和图文混排页）。
-Future<List<BookPage>> _buildSamplePages() async {
+/// 构建演示文档（由 SDK 根据页面可用区域自动分页）。
+Future<BookDocument> _buildSampleDocument() async {
   final Uint8List imgA = await _generatePlaceholderImage(
     800,
     400,
@@ -55,73 +55,63 @@ Future<List<BookPage>> _buildSamplePages() async {
     const Color(0xFFD4A06A),
   );
 
-  return <BookPage>[
-    // ---- 纯文字页（方式 A）----
-    const BookPage(
-      pageNumber: 1,
-      title: '风从纸页间穿过',
-      body:
-          '午后四点，窗外的梧桐叶被一阵短风掀起，光线像细小的水纹落在桌角。'
-          '我把手指按在书页边缘，听见纸纤维极轻的摩擦声，那声音像有人在远处慢慢折一封旧信。\n\n'
-          '阅读最迷人的时刻，不是看见答案，而是看见问题在句子之间缓慢成形。'
-          '每一页都像一扇半开的门，门后并不急着给出结论，只让你先站在门槛上，'
-          '闻见木头、灰尘和雨后的空气。',
-    ),
-
-    // ---- 图文混排页（方式 B）----
-    BookPage.rich(
-      pageNumber: 2,
-      contents: <PageContent>[
-        const TitleBlock('城市的背面'),
-        const ParagraphBlock('清晨第一班地铁进站时，广告灯箱还没完全点亮，站台像一块尚未显影的底片。'),
-        ImageBlock(bytes: imgA, height: 120, caption: '站台的晨光'),
-        const ParagraphBlock(
-          '有人把今天排成清单，有人把昨天折成口袋里的小纸条。'
-          '城市从不缺少速度，缺少的是那一秒钟的停顿。',
-        ),
-      ],
-    ),
-
-    // ---- 多图混排 ----
-    BookPage.rich(
-      pageNumber: 3,
-      contents: <PageContent>[
-        const TitleBlock('手写体温度'),
-        const ParagraphBlock('键盘让句子整齐，手写让句子有呼吸。'),
-        ImageBlock(bytes: imgB, height: 100, caption: '泛黄便签'),
-        const SpacingBlock(8),
-        const ParagraphBlock(
-          '一张泛黄便签、一本压扁的笔记本、一次写错后划掉的名字，'
-          '都在悄悄提醒：时间并不是流逝，它只是换了一种纹理继续存在。',
-        ),
-      ],
-    ),
-
-    // ---- 纯文字页 ----
-    const BookPage(
-      pageNumber: 4,
-      title: '雨夜与路灯',
-      body:
-          '夜里十点半，雨开始变密。'
-          '路灯把每一滴雨都照成短暂的金线，落地后立刻消失。'
-          '我在便利店门口等雨小一点，听见冰柜压缩机低频运转，像远处海潮。\n\n'
-          '那一刻忽然明白，所谓平静并不是环境安静，'
-          '而是你能在嘈杂里辨认出自己的节奏。'
-          '就像翻页时那道弧线，看起来柔软，却始终知道该落向哪里。',
-    ),
-
-    const BookPage(
-      pageNumber: 5,
-      title: '最后一页之前',
-      body:
-          '真正难的不是结束，而是承认结束后仍然要继续。'
-          '书快读到尾声时，我们会下意识放慢速度，'
-          '仿佛只要翻页更慢一点，故事就能多停留几分钟。\n\n'
-          '但纸页终究会落下，灯也终究会熄灭。'
-          '好在你已经带走了一部分光：'
-          '它会在下一次抬手翻页时，重新照亮你的指尖。',
-    ),
-  ];
+  return BookDocument(
+    contents: <PageContent>[
+      const TitleBlock('风从纸页间穿过'),
+      const ParagraphBlock(
+        '午后四点，窗外的梧桐叶被一阵短风掀起，光线像细小的水纹落在桌角。'
+        '我把手指按在书页边缘，听见纸纤维极轻的摩擦声，那声音像有人在远处慢慢折一封旧信。',
+      ),
+      const ParagraphBlock(
+        '阅读最迷人的时刻，不是看见答案，而是看见问题在句子之间缓慢成形。'
+        '每一页都像一扇半开的门，门后并不急着给出结论，只让你先站在门槛上，'
+        '闻见木头、灰尘和雨后的空气。',
+      ),
+      const QuoteBlock('真正好的翻页，不该让用户去对准像素，而该让动作自然落地。'),
+      const TitleBlock('城市的背面'),
+      const ParagraphBlock('清晨第一班地铁进站时，广告灯箱还没完全点亮，站台像一块尚未显影的底片。'),
+      ImageBlock(bytes: imgA, height: 120, caption: '站台的晨光'),
+      const ParagraphBlock(
+        '有人把今天排成清单，有人把昨天折成口袋里的小纸条。'
+        '城市从不缺少速度，缺少的是那一秒钟的停顿。',
+      ),
+      const TitleBlock('手写体温度'),
+      const ParagraphBlock('键盘让句子整齐，手写让句子有呼吸。'),
+      ImageBlock(bytes: imgB, height: 100, caption: '泛黄便签'),
+      const SpacingBlock(8),
+      const ParagraphBlock(
+        '一张泛黄便签、一本压扁的笔记本、一次写错后划掉的名字，'
+        '都在悄悄提醒：时间并不是流逝，它只是换了一种纹理继续存在。',
+      ),
+      const TitleBlock('雨夜与路灯'),
+      const ParagraphBlock(
+        '夜里十点半，雨开始变密。'
+        '路灯把每一滴雨都照成短暂的金线，落地后立刻消失。'
+        '我在便利店门口等雨小一点，听见冰柜压缩机低频运转，像远处海潮。',
+      ),
+      const ParagraphBlock(
+        '那一刻忽然明白，所谓平静并不是环境安静，'
+        '而是你能在嘈杂里辨认出自己的节奏。'
+        '就像翻页时那道弧线，看起来柔软，却始终知道该落向哪里。',
+      ),
+      const BulletListBlock(<String>[
+        '文本可以长按选择并复制',
+        '图片会参与自动分页计算',
+        '支持手势翻页和控制器按钮翻页',
+      ]),
+      const TitleBlock('最后一页之前'),
+      const ParagraphBlock(
+        '真正难的不是结束，而是承认结束后仍然要继续。'
+        '书快读到尾声时，我们会下意识放慢速度，'
+        '仿佛只要翻页更慢一点，故事就能多停留几分钟。',
+      ),
+      const ParagraphBlock(
+        '但纸页终究会落下，灯也终究会熄灭。'
+        '好在你已经带走了一部分光：'
+        '它会在下一次抬手翻页时，重新照亮你的指尖。',
+      ),
+    ],
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -170,7 +160,7 @@ class _ExampleScreenState extends State<ExampleScreen> {
   void initState() {
     super.initState();
 
-    // 创建 controller：先给空页面，等异步图片数据就绪后再填充
+    // 创建 controller：先给空内容，等异步图片数据就绪后再填充自动分页文档
     _controller = PageCurlController(
       pages: const <BookPage>[],
       config: const PageCurlConfig(
@@ -179,20 +169,27 @@ class _ExampleScreenState extends State<ExampleScreen> {
         curlRadiusFactor: 1.18,
       ),
     );
-    _loadPages();
+    _controller.addListener(_handleControllerChanged);
+    _loadDocument();
   }
 
-  Future<void> _loadPages() async {
-    final pages = await _buildSamplePages();
+  void _handleControllerChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  Future<void> _loadDocument() async {
+    final BookDocument document = await _buildSampleDocument();
     if (!mounted) return;
     setState(() {
-      _controller.pages = pages;
+      _controller.document = document;
       _loading = false;
     });
   }
 
   @override
   void dispose() {
+    _controller.removeListener(_handleControllerChanged);
     _controller.dispose();
     super.dispose();
   }
@@ -251,6 +248,18 @@ class _ExampleScreenState extends State<ExampleScreen> {
                 style: const TextStyle(color: Colors.white, fontSize: 14),
               ),
               const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.chevron_left, color: Colors.white70),
+                onPressed:
+                    _currentPage > 0 ? () => _controller.previousPage() : null,
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right, color: Colors.white70),
+                onPressed:
+                    _currentPage + 1 < _controller.totalPages
+                        ? () => _controller.nextPage()
+                        : null,
+              ),
               IconButton(
                 icon: Icon(
                   _showPanel ? Icons.tune : Icons.tune_outlined,

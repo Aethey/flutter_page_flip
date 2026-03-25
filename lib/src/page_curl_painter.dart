@@ -33,27 +33,53 @@ Future<ui.Image> rasterizePageImage({
 
   if (page.contents != null && page.contents!.isNotEmpty) {
     cursorY = await _renderBlocks(
-      canvas, page.contents!, typography, theme, size, contentWidth, startX, cursorY,
+      canvas,
+      page.contents!,
+      typography,
+      theme,
+      size,
+      contentWidth,
+      startX,
+      cursorY,
     );
   } else {
     cursorY = _renderLegacyText(
-      canvas, page, typography, theme, contentWidth, startX, cursorY,
+      canvas,
+      page,
+      typography,
+      theme,
+      contentWidth,
+      startX,
+      cursorY,
     );
   }
 
-  _drawPageNumber(canvas, page.pageNumber, typography, theme, size, contentWidth);
+  _drawPageNumber(
+    canvas,
+    page.pageNumber,
+    typography,
+    theme,
+    size,
+    contentWidth,
+  );
   _drawEdgeShade(canvas, size, pageRect, theme);
 
-  return recorder
-      .endRecording()
-      .toImage(size.width.round(), size.height.round());
+  return recorder.endRecording().toImage(
+    size.width.round(),
+    size.height.round(),
+  );
 }
 
 // ---------------------------------------------------------------------------
 // Background / footer / edge shade (shared by both paths).
 // ---------------------------------------------------------------------------
 
-void _drawPageBackground(Canvas canvas, Size size, Rect pageRect, BookTheme theme) {
+void _drawPageBackground(
+  Canvas canvas,
+  Size size,
+  Rect pageRect,
+  BookTheme theme,
+) {
   final Color end = theme.pageColorEnd ?? theme.pageColor;
   if (theme.pageColor == end) {
     canvas.drawRect(pageRect, Paint()..color = theme.pageColor);
@@ -78,7 +104,7 @@ void _drawPageBackground(Canvas canvas, Size size, Rect pageRect, BookTheme them
           Offset(size.width * 0.12, size.height * 0.08),
           size.longestSide * 1.1,
           [
-            Colors.white.withOpacity(theme.vignetteOpacity),
+            Colors.white.withValues(alpha: theme.vignetteOpacity),
             Colors.transparent,
           ],
           const [0.0, 1.0],
@@ -128,7 +154,10 @@ void _drawEdgeShade(Canvas canvas, Size size, Rect pageRect, BookTheme theme) {
       ..shader = ui.Gradient.linear(
         Offset(size.width * 0.985, 0),
         Offset(size.width, 0),
-        [Colors.black.withOpacity(theme.edgeShadeOpacity), Colors.transparent],
+        [
+          Colors.black.withValues(alpha: theme.edgeShadeOpacity),
+          Colors.transparent,
+        ],
         const [0.0, 1.0],
       ),
   );
@@ -150,15 +179,21 @@ void _drawRealisticTexture(Canvas canvas, Size size, int seed) {
     if (rng.nextBool()) {
       grain.color = Color.fromRGBO(0, 0, 0, 0.012 + rng.nextDouble() * 0.018);
     } else {
-      grain.color = Color.fromRGBO(255, 255, 255, 0.018 + rng.nextDouble() * 0.025);
+      grain.color = Color.fromRGBO(
+        255,
+        255,
+        255,
+        0.018 + rng.nextDouble() * 0.025,
+      );
     }
     canvas.drawCircle(Offset(x, y), r, grain);
   }
 
   // Paper fibers — short thin lines.
-  final Paint fiber = Paint()
-    ..style = PaintingStyle.stroke
-    ..strokeWidth = 0.3;
+  final Paint fiber =
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.3;
   for (int i = 0; i < 70; i++) {
     final double x = rng.nextDouble() * size.width;
     final double y = rng.nextDouble() * size.height;
@@ -202,7 +237,7 @@ void _drawRealisticTexture(Canvas canvas, Size size, int seed) {
       ..shader = ui.Gradient.radial(
         Offset(size.width * 0.5, size.height * 0.45),
         size.longestSide * 0.65,
-        [Colors.transparent, Colors.black.withOpacity(0.055)],
+        [Colors.transparent, Colors.black.withValues(alpha: 0.055)],
         const [0.55, 1.0],
       ),
   );
@@ -313,6 +348,79 @@ Future<double> _renderBlocks(
         p.paint(canvas, Offset(startX, cursorY));
         cursorY += p.height + typography.paragraphSpacing;
 
+      case QuoteBlock(:final text, :final attribution):
+        final TextPainter quotePainter = TextPainter(
+          textDirection: TextDirection.ltr,
+          text: TextSpan(
+            text: text,
+            style: TextStyle(
+              fontSize: typography.bodySize,
+              height: typography.lineHeight,
+              color: theme.bodyColor,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        )..layout(maxWidth: contentWidth - 28);
+        final double quoteHeight = quotePainter.height + 24;
+        final Rect quoteRect = Rect.fromLTWH(
+          startX,
+          cursorY,
+          contentWidth,
+          quoteHeight,
+        );
+        canvas.drawRect(
+          quoteRect,
+          Paint()..color = theme.pageNumberColor.withValues(alpha: 0.08),
+        );
+        canvas.drawRect(
+          Rect.fromLTWH(startX, cursorY, 3, quoteHeight),
+          Paint()..color = theme.pageNumberColor.withValues(alpha: 0.5),
+        );
+        quotePainter.paint(canvas, Offset(startX + 14, cursorY + 12));
+        cursorY += quoteHeight;
+
+        if (attribution != null && attribution.isNotEmpty) {
+          final TextPainter attributionPainter = TextPainter(
+            textDirection: TextDirection.ltr,
+            text: TextSpan(
+              text: attribution,
+              style: TextStyle(
+                fontSize: typography.bodySize - 2,
+                height: typography.lineHeight,
+                color: theme.captionColor,
+                letterSpacing: 0.2,
+              ),
+            ),
+          )..layout(maxWidth: contentWidth - 28);
+          attributionPainter.paint(canvas, Offset(startX + 14, cursorY + 8));
+          cursorY += attributionPainter.height + 8;
+        }
+        cursorY += typography.paragraphSpacing;
+
+      case BulletListBlock(:final items):
+        for (final String item in items) {
+          final TextPainter bulletPainter = TextPainter(
+            textDirection: TextDirection.ltr,
+            text: TextSpan(
+              text: item,
+              style: TextStyle(
+                fontSize: typography.bodySize,
+                height: typography.lineHeight,
+                color: theme.bodyColor,
+                letterSpacing: 0.1,
+              ),
+            ),
+          )..layout(maxWidth: contentWidth - 18);
+          final double bulletY = cursorY + typography.bodySize * 0.32;
+          canvas.drawCircle(
+            Offset(startX + 3, bulletY),
+            3,
+            Paint()..color = theme.bodyColor,
+          );
+          bulletPainter.paint(canvas, Offset(startX + 16, cursorY));
+          cursorY += bulletPainter.height + typography.paragraphSpacing * 0.75;
+        }
+
       case ImageBlock(:final bytes, :final height, :final caption):
         final ui.Codec codec = await ui.instantiateImageCodec(bytes);
         final ui.FrameInfo frame = await codec.getNextFrame();
@@ -322,13 +430,21 @@ Future<double> _renderBlocks(
         final double drawW = contentWidth;
         final double drawH = height ?? (drawW / imgAspect);
         final Rect src = Rect.fromLTWH(
-          0, 0, img.width.toDouble(), img.height.toDouble(),
+          0,
+          0,
+          img.width.toDouble(),
+          img.height.toDouble(),
         );
         final Rect dst = Rect.fromLTWH(startX, cursorY, drawW, drawH);
 
         canvas.save();
         canvas.clipRect(dst);
-        canvas.drawImageRect(img, src, dst, Paint()..filterQuality = FilterQuality.medium);
+        canvas.drawImageRect(
+          img,
+          src,
+          dst,
+          Paint()..filterQuality = FilterQuality.medium,
+        );
         canvas.restore();
         img.dispose();
 
@@ -377,6 +493,8 @@ class PageCurlPainter extends CustomPainter {
     required this.shadowWidth,
     required this.highlightStrength,
     required this.backFaceTint,
+    this.paintStationaryCurrentPage = true,
+    this.paintBelowPageImage = true,
   });
 
   final ui.Image currentImage;
@@ -388,19 +506,21 @@ class PageCurlPainter extends CustomPainter {
   final double shadowWidth;
   final double highlightStrength;
   final Color backFaceTint;
+  final bool paintStationaryCurrentPage;
+  final bool paintBelowPageImage;
 
   @override
   void paint(Canvas canvas, Size size) {
     final Rect pageRect = Offset.zero & size;
 
-    if (geometry == null || belowImage == null) {
+    if (geometry == null) {
       canvas.drawImage(currentImage, Offset.zero, Paint());
       _drawIdleEdgeShadow(canvas, size);
       return;
     }
 
     final CurlGeometry g = geometry!;
-    final ui.Image flapBackImage = backFaceImage ?? belowImage!;
+    final ui.Image flapBackImage = backFaceImage ?? currentImage;
     if (!g.hasCurl) {
       canvas.drawImage(currentImage, Offset.zero, Paint());
       return;
@@ -410,13 +530,20 @@ class PageCurlPainter extends CustomPainter {
     final double t = Curves.easeInOut.transform(g.progress.clamp(0.0, 1.0));
 
     // Layer 1: below page visible through the lifted area.
-    canvas.drawImage(belowImage!, Offset.zero, Paint());
+    canvas.save();
+    canvas.clipPath(g.curlPath);
+    if (paintBelowPageImage && belowImage != null) {
+      canvas.drawImage(belowImage!, Offset.zero, Paint());
+    }
     _drawProjectionShadow(canvas, size, g);
+    canvas.restore();
 
     // Layer 2: stationary visible part of current page.
     canvas.save();
     canvas.clipPath(g.stationaryPath);
-    canvas.drawImage(currentImage, Offset.zero, Paint());
+    if (paintStationaryCurrentPage) {
+      canvas.drawImage(currentImage, Offset.zero, Paint());
+    }
     _drawFoldEdgeShadow(canvas, size, g);
     canvas.restore();
 
@@ -429,14 +556,14 @@ class PageCurlPainter extends CustomPainter {
     canvas.drawImage(
       flapBackImage,
       Offset.zero,
-      Paint()..color = Colors.white.withOpacity(0.60 + t * 0.35),
+      Paint()..color = Colors.white.withValues(alpha: 0.60 + t * 0.35),
     );
     canvas.restore();
 
     final double tintOpacity = (0.45 - t * 0.20).clamp(0.10, 0.50);
     canvas.drawRect(
       pageRect,
-      Paint()..color = backFaceTint.withOpacity(tintOpacity),
+      Paint()..color = backFaceTint.withValues(alpha: tintOpacity),
     );
 
     _drawBackFaceTone(canvas, size, g, amount: 0.8 + t * 0.5);
@@ -480,8 +607,10 @@ class PageCurlPainter extends CustomPainter {
   }
 
   void _drawProjectionShadow(Canvas canvas, Size size, CurlGeometry g) {
-    final double width =
-        (shadowWidth * (0.75 + g.progress * 0.9)).clamp(8.0, size.width * 0.5);
+    final double width = (shadowWidth * (0.75 + g.progress * 0.9)).clamp(
+      8.0,
+      size.width * 0.5,
+    );
     final double opacity =
         (0.10 + 0.28 * g.progress) * shadowStrength.clamp(0.0, 2.0);
 
@@ -490,13 +619,14 @@ class PageCurlPainter extends CustomPainter {
     canvas.translate(g.mid.dx, g.mid.dy);
     canvas.rotate(math.atan2(g.normal.dy, g.normal.dx));
 
-    final Paint paint = Paint()
-      ..shader = ui.Gradient.linear(
-        Offset(0, 0),
-        Offset(width, 0),
-        [Colors.black.withOpacity(opacity), Colors.transparent],
-        const [0.0, 1.0],
-      );
+    final Paint paint =
+        Paint()
+          ..shader = ui.Gradient.linear(
+            Offset(0, 0),
+            Offset(width, 0),
+            [Colors.black.withValues(alpha: opacity), Colors.transparent],
+            const [0.0, 1.0],
+          );
 
     canvas.drawRect(
       Rect.fromLTWH(0, -size.height * 2, width, size.height * 4),
@@ -506,24 +636,28 @@ class PageCurlPainter extends CustomPainter {
   }
 
   void _drawFoldEdgeShadow(Canvas canvas, Size size, CurlGeometry g) {
-    final double width =
-        (shadowWidth * (0.70 + g.progress * 0.75)).clamp(6.0, size.width * 0.48);
+    final double width = (shadowWidth * (0.70 + g.progress * 0.75)).clamp(
+      6.0,
+      size.width * 0.48,
+    );
 
     final double angleFactor = (1 - g.normal.dx.abs()).clamp(0.2, 1.0);
     final double opacity =
-        (0.08 + 0.34 * g.progress * angleFactor) * shadowStrength.clamp(0.0, 2.0);
+        (0.08 + 0.34 * g.progress * angleFactor) *
+        shadowStrength.clamp(0.0, 2.0);
 
     canvas.save();
     canvas.translate(g.mid.dx, g.mid.dy);
     canvas.rotate(math.atan2(g.normal.dy, g.normal.dx));
 
-    final Paint paint = Paint()
-      ..shader = ui.Gradient.linear(
-        Offset.zero,
-        Offset(-width, 0),
-        [Colors.black.withOpacity(opacity), Colors.transparent],
-        const [0.0, 1.0],
-      );
+    final Paint paint =
+        Paint()
+          ..shader = ui.Gradient.linear(
+            Offset.zero,
+            Offset(-width, 0),
+            [Colors.black.withValues(alpha: opacity), Colors.transparent],
+            const [0.0, 1.0],
+          );
 
     canvas.drawRect(
       Rect.fromLTWH(-width, -size.height * 2, width, size.height * 4),
@@ -542,8 +676,10 @@ class PageCurlPainter extends CustomPainter {
     if (amount <= 0) {
       return;
     }
-    final double width =
-        (shadowWidth * (1.0 + g.progress)).clamp(12.0, size.width * 0.75);
+    final double width = (shadowWidth * (1.0 + g.progress)).clamp(
+      12.0,
+      size.width * 0.75,
+    );
     final double opacity =
         (0.14 + 0.32 * g.progress) * shadowStrength.clamp(0.0, 2.0) * amount;
 
@@ -551,17 +687,18 @@ class PageCurlPainter extends CustomPainter {
     canvas.translate(g.mid.dx, g.mid.dy);
     canvas.rotate(math.atan2(g.normal.dy, g.normal.dx));
 
-    final Paint paint = Paint()
-      ..shader = ui.Gradient.linear(
-        Offset(-width, 0),
-        Offset(0, 0),
-        [
-          Colors.transparent,
-          Colors.black.withOpacity(opacity * 0.40),
-          Colors.black.withOpacity(opacity),
-        ],
-        const [0.0, 0.50, 1.0],
-      );
+    final Paint paint =
+        Paint()
+          ..shader = ui.Gradient.linear(
+            Offset(-width, 0),
+            Offset(0, 0),
+            [
+              Colors.transparent,
+              Colors.black.withValues(alpha: opacity * 0.40),
+              Colors.black.withValues(alpha: opacity),
+            ],
+            const [0.0, 0.50, 1.0],
+          );
 
     canvas.drawRect(
       Rect.fromLTWH(-width, -size.height * 2, width, size.height * 4),
@@ -580,28 +717,28 @@ class PageCurlPainter extends CustomPainter {
     if (amount <= 0) {
       return;
     }
-    final double width =
-        (shadowWidth * 0.42).clamp(4.0, size.width * 0.25);
+    final double width = (shadowWidth * 0.42).clamp(4.0, size.width * 0.25);
     final double opacity =
         (0.06 + 0.20 * (1 - g.normal.dx.abs()) * g.progress) *
-            highlightStrength.clamp(0.0, 2.0) *
-            amount;
+        highlightStrength.clamp(0.0, 2.0) *
+        amount;
 
     canvas.save();
     canvas.translate(g.mid.dx, g.mid.dy);
     canvas.rotate(math.atan2(g.normal.dy, g.normal.dx));
 
-    final Paint paint = Paint()
-      ..shader = ui.Gradient.linear(
-        Offset(-width, 0),
-        Offset(0, 0),
-        [
-          Colors.transparent,
-          Colors.white.withOpacity(opacity),
-          Colors.transparent,
-        ],
-        const [0.0, 0.40, 1.0],
-      );
+    final Paint paint =
+        Paint()
+          ..shader = ui.Gradient.linear(
+            Offset(-width, 0),
+            Offset(0, 0),
+            [
+              Colors.transparent,
+              Colors.white.withValues(alpha: opacity),
+              Colors.transparent,
+            ],
+            const [0.0, 0.40, 1.0],
+          );
 
     canvas.drawRect(
       Rect.fromLTWH(-width, -size.height * 2, width, size.height * 4),
@@ -616,7 +753,7 @@ class PageCurlPainter extends CustomPainter {
     final double angleFactor = (1 - g.normal.dx.abs()).clamp(0.15, 1.0);
     final double opacity =
         (0.10 + 0.24 * angleFactor * g.progress) *
-            highlightStrength.clamp(0.0, 2.0);
+        highlightStrength.clamp(0.0, 2.0);
 
     if (opacity < 0.01) {
       return;
@@ -626,17 +763,18 @@ class PageCurlPainter extends CustomPainter {
     canvas.translate(g.mid.dx, g.mid.dy);
     canvas.rotate(math.atan2(g.normal.dy, g.normal.dx));
 
-    final Paint paint = Paint()
-      ..shader = ui.Gradient.linear(
-        Offset(-width, 0),
-        Offset(width, 0),
-        [
-          Colors.transparent,
-          Colors.white.withOpacity(opacity),
-          Colors.transparent,
-        ],
-        const [0.0, 0.5, 1.0],
-      );
+    final Paint paint =
+        Paint()
+          ..shader = ui.Gradient.linear(
+            Offset(-width, 0),
+            Offset(width, 0),
+            [
+              Colors.transparent,
+              Colors.white.withValues(alpha: opacity),
+              Colors.transparent,
+            ],
+            const [0.0, 0.5, 1.0],
+          );
 
     canvas.drawRect(
       Rect.fromLTWH(-width, -size.height * 2, width * 2, size.height * 4),
@@ -650,28 +788,31 @@ class PageCurlPainter extends CustomPainter {
     final Offset start = g.foldStart ?? g.mid - g.tangent * 600;
     final Offset end = g.foldEnd ?? g.mid + g.tangent * 600;
 
-    final Paint shadowPaint = Paint()
-      ..color = Colors.black.withOpacity(0.14 + g.progress * 0.10)
-      ..strokeWidth = 1.0
-      ..style = PaintingStyle.stroke;
+    final Paint shadowPaint =
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.14 + g.progress * 0.10)
+          ..strokeWidth = 1.0
+          ..style = PaintingStyle.stroke;
     canvas.drawLine(start, end, shadowPaint);
 
     final Offset offset = g.normal * -1.0;
-    final Paint edgePaint = Paint()
-      ..color = Colors.white.withOpacity(0.08 + g.progress * 0.06)
-      ..strokeWidth = 0.6
-      ..style = PaintingStyle.stroke;
+    final Paint edgePaint =
+        Paint()
+          ..color = Colors.white.withValues(alpha: 0.08 + g.progress * 0.06)
+          ..strokeWidth = 0.6
+          ..style = PaintingStyle.stroke;
     canvas.drawLine(start + offset, end + offset, edgePaint);
   }
 
   void _drawIdleEdgeShadow(Canvas canvas, Size size) {
-    final Paint paint = Paint()
-      ..shader = ui.Gradient.linear(
-        Offset(size.width * 0.98, 0),
-        Offset(size.width, 0),
-        [Colors.black.withOpacity(0.08), Colors.transparent],
-        const [0.0, 1.0],
-      );
+    final Paint paint =
+        Paint()
+          ..shader = ui.Gradient.linear(
+            Offset(size.width * 0.98, 0),
+            Offset(size.width, 0),
+            [Colors.black.withValues(alpha: 0.08), Colors.transparent],
+            const [0.0, 1.0],
+          );
     canvas.drawRect(Offset.zero & size, paint);
   }
 
@@ -683,6 +824,8 @@ class PageCurlPainter extends CustomPainter {
         oldDelegate.geometry != geometry ||
         oldDelegate.shadowStrength != shadowStrength ||
         oldDelegate.shadowWidth != shadowWidth ||
-        oldDelegate.highlightStrength != highlightStrength;
+        oldDelegate.highlightStrength != highlightStrength ||
+        oldDelegate.paintStationaryCurrentPage != paintStationaryCurrentPage ||
+        oldDelegate.paintBelowPageImage != paintBelowPageImage;
   }
 }

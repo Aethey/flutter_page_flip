@@ -18,6 +18,17 @@ class ParagraphBlock extends PageContent {
   final String text;
 }
 
+class QuoteBlock extends PageContent {
+  const QuoteBlock(this.text, {this.attribution});
+  final String text;
+  final String? attribution;
+}
+
+class BulletListBlock extends PageContent {
+  const BulletListBlock(this.items);
+  final List<String> items;
+}
+
 /// Image block that renders inline within the page flow.
 ///
 /// [bytes] must be valid encoded image data (PNG / JPEG / WebP / etc.).
@@ -53,8 +64,8 @@ class BookPage {
   const BookPage.rich({
     required this.pageNumber,
     required List<PageContent> this.contents,
-  })  : title = '',
-        body = '';
+  }) : title = '',
+       body = '';
 
   final int pageNumber;
   final String title;

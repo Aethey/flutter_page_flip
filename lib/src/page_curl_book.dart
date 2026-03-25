@@ -69,12 +69,12 @@ class _DragIntent {
   const _DragIntent({
     required this.direction,
     required this.position,
-    required this.top,
+    required this.anchor,
   });
 
   final FlipDirection direction;
   final Offset position;
-  final bool top;
+  final Offset anchor;
 }
 
 class _PageCurlBookViewState extends State<PageCurlBookView>
@@ -235,9 +235,64 @@ class _PageCurlBookViewState extends State<PageCurlBookView>
     Future<void>.microtask(() => _ensureRasterized(s));
   }
 
-  Offset _cornerFor(FlipDirection d, {required bool top}) {
+  Offset _edgeAnchorFor(FlipDirection d, double y) {
     final double x = d == FlipDirection.next ? _vp.width : 0;
-    return Offset(x, top ? 0 : _vp.height);
+    return Offset(x, y.clamp(0, _vp.height).toDouble());
+  }
+
+  double _edgeAnchorY(double rawY) {
+    final double y = rawY.clamp(0, _vp.height).toDouble();
+    final double cornerBand = (_vp.height * 0.20).clamp(68, 150).toDouble();
+    final double transitionBand =
+        (_vp.height * 0.10).clamp(28, 72).toDouble();
+
+    if (y <= cornerBand) {
+      return 0;
+    }
+
+    final double topTransitionEnd = cornerBand + transitionBand;
+    if (y < topTransitionEnd) {
+      final double t = ((y - cornerBand) / transitionBand).clamp(0.0, 1.0);
+      return ui.lerpDouble(0, y, Curves.easeOut.transform(t)) ?? y;
+    }
+
+    final double bottomCornerStart = _vp.height - cornerBand;
+    if (y >= bottomCornerStart) {
+      return _vp.height;
+    }
+
+    final double bottomTransitionStart = bottomCornerStart - transitionBand;
+    if (y > bottomTransitionStart) {
+      final double t =
+          ((y - bottomTransitionStart) / transitionBand).clamp(0.0, 1.0);
+      return ui.lerpDouble(y, _vp.height, Curves.easeOut.transform(t)) ?? y;
+    }
+
+    return y;
+  }
+
+  bool _isSideAnchor(Offset anchor) =>
+      anchor.dy > 0.5 && anchor.dy < _vp.height - 0.5;
+
+  Offset _commitTargetFor({
+    required FlipDirection direction,
+    required Offset anchor,
+  }) {
+    if (_isSideAnchor(anchor)) {
+      final double x =
+          direction == FlipDirection.next ? -_vp.width * 0.18 : _vp.width * 1.18;
+      final double inset = (_vp.height * 0.05).clamp(18, 42).toDouble();
+      return Offset(
+        x,
+        anchor.dy.clamp(inset, _vp.height - inset).toDouble(),
+      );
+    }
+
+    final bool top = anchor.dy <= _vp.height * 0.5;
+    final double yOut = _vp.height * 0.10;
+    return direction == FlipDirection.next
+        ? Offset(-_vp.width * 0.18, top ? -yOut : _vp.height + yOut)
+        : Offset(_vp.width * 1.18, top ? -yOut : _vp.height + yOut);
   }
 
   // ---- gestures -----------------------------------------------------------
@@ -245,19 +300,18 @@ class _PageCurlBookViewState extends State<PageCurlBookView>
   _DragIntent? _dragIntentFor(Offset position) {
     if (_vp.isEmpty) return null;
     final double edgeZone = _edgeZoneWidth();
-    final bool top = position.dy <= _vp.height * 0.5;
     if (position.dx >= _vp.width - edgeZone && _canNext) {
       return _DragIntent(
         direction: FlipDirection.next,
         position: position,
-        top: top,
+        anchor: _edgeAnchorFor(FlipDirection.next, _edgeAnchorY(position.dy)),
       );
     }
     if (position.dx <= edgeZone && _canPrev) {
       return _DragIntent(
         direction: FlipDirection.prev,
         position: position,
-        top: top,
+        anchor: _edgeAnchorFor(FlipDirection.prev, _edgeAnchorY(position.dy)),
       );
     }
     return null;
@@ -278,7 +332,7 @@ class _PageCurlBookViewState extends State<PageCurlBookView>
       overscrollX: _dragOverscrollX,
       overscrollY: _dragOverscrollY,
     );
-    final Offset c = _cornerFor(intent.direction, top: intent.top);
+    final Offset c = intent.anchor;
     final int now = nowMicros();
     _vel.reset();
     _vel.addSample(seed, now - const Duration(milliseconds: 16).inMicroseconds);
@@ -363,30 +417,44 @@ class _PageCurlBookViewState extends State<PageCurlBookView>
     final Offset p = det.localPosition;
     final double tapZone = _tapZoneWidth();
     if (p.dx >= _vp.width - tapZone && _canNext) {
-      _startTapFlip(FlipDirection.next, p.dy);
+      _startTapFlip(
+        _DragIntent(
+          direction: FlipDirection.next,
+          position: p,
+          anchor: _edgeAnchorFor(FlipDirection.next, _edgeAnchorY(p.dy)),
+        ),
+      );
     } else if (p.dx <= tapZone && _canPrev) {
-      _startTapFlip(FlipDirection.prev, p.dy);
+      _startTapFlip(
+        _DragIntent(
+          direction: FlipDirection.prev,
+          position: p,
+          anchor: _edgeAnchorFor(FlipDirection.prev, _edgeAnchorY(p.dy)),
+        ),
+      );
     }
   }
 
   // ---- flip animations ----------------------------------------------------
 
-  void _startTapFlip(FlipDirection d, double tapY) {
-    final bool top = tapY < _vp.height * 0.5;
-    final Offset c = _cornerFor(d, top: top);
-    final Offset start = d == FlipDirection.next
-        ? c + Offset(-18, top ? 12 : -12)
-        : c + Offset(18, top ? 12 : -12);
-    final double yOut = _vp.height * 0.10;
-    final Offset end = d == FlipDirection.next
-        ? Offset(-_vp.width * 0.18, top ? -yOut : _vp.height + yOut)
-        : Offset(_vp.width * 1.18, top ? -yOut : _vp.height + yOut);
+  void _startTapFlip(_DragIntent intent) {
+    final Offset c = intent.anchor;
+    final bool side = _isSideAnchor(c);
+    final bool top = c.dy < _vp.height * 0.5;
+    final Offset start = intent.direction == FlipDirection.next
+        ? c + Offset(-18, side ? 0 : (top ? 12 : -12))
+        : c + Offset(18, side ? 0 : (top ? 12 : -12));
+    final Offset end = _commitTargetFor(
+      direction: intent.direction,
+      anchor: c,
+    );
 
     setState(() {
-      _dir = d;
+      _dir = intent.direction;
       _corner = c;
       _drag = start;
-      _state = d == FlipDirection.next ? _Flip.toNext : _Flip.toPrev;
+      _state =
+          intent.direction == FlipDirection.next ? _Flip.toNext : _Flip.toPrev;
     });
 
     _startTimed(
@@ -399,11 +467,10 @@ class _PageCurlBookViewState extends State<PageCurlBookView>
 
   void _animateCommit(Duration dur) {
     if (_dir == null || _corner == null || _drag == null) return;
-    final bool top = _corner!.dy <= _vp.height * 0.5;
-    final double yOut = _vp.height * 0.10;
-    final Offset target = _dir == FlipDirection.next
-        ? Offset(-_vp.width * 0.18, top ? -yOut : _vp.height + yOut)
-        : Offset(_vp.width * 1.18, top ? -yOut : _vp.height + yOut);
+    final Offset target = _commitTargetFor(
+      direction: _dir!,
+      anchor: _corner!,
+    );
 
     setState(() {
       _state = _dir == FlipDirection.next ? _Flip.toNext : _Flip.toPrev;

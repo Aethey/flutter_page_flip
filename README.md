@@ -8,14 +8,14 @@ Language / 言語 / 语言:
 ## Demo Recordings
 
 ### Android
-<video src="./record/android_record.mp4" controls preload="metadata" width="360"></video>
-
-Fallback link: [record/android_record.mp4](./record/android_record.mp4)
+<video controls preload="metadata" width="360">
+  <source src="./record/android_record.mp4" type="video/mp4">
+</video>
 
 ### iOS
-<video src="./record/ios_record.mp4" controls preload="metadata" width="360"></video>
-
-Fallback link: [record/ios_record.mp4](./record/ios_record.mp4)
+<video controls preload="metadata" width="360">
+  <source src="./record/ios_record.mp4" type="video/mp4">
+</video>
 
 ---
 

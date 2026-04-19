@@ -8,14 +8,10 @@ Language / 言語 / 语言:
 ## Demo Recordings
 
 ### Android
-<video controls preload="metadata" width="360">
-  <source src="./record/android_record.mp4" type="video/mp4">
-</video>
+https://github.com/user-attachments/assets/c8fd26b3-065d-4e23-9e2e-02fb5f7a5c2e
 
 ### iOS
-<video controls preload="metadata" width="360">
-  <source src="./record/ios_record.mp4" type="video/mp4">
-</video>
+https://github.com/user-attachments/assets/3765ff1f-3623-44af-941a-09c058644725
 
 ---
 

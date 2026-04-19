@@ -7,8 +7,15 @@ Language / 言語 / 语言:
 
 ## Demo Recordings
 
-- Android: [record/android_record.mp4](./record/android_record.mp4)
-- iOS: [record/ios_record.mp4](./record/ios_record.mp4)
+### Android
+<video src="./record/android_record.mp4" controls preload="metadata" width="360"></video>
+
+Fallback link: [record/android_record.mp4](./record/android_record.mp4)
+
+### iOS
+<video src="./record/ios_record.mp4" controls preload="metadata" width="360"></video>
+
+Fallback link: [record/ios_record.mp4](./record/ios_record.mp4)
 
 ---
 

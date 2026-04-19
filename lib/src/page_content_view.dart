@@ -33,8 +33,10 @@ class BookPageContentView extends StatelessWidget {
           typography.bottomPadding + typography.pageNumberSize + 10,
         ),
         child: SelectionArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: ListView(
+            padding: EdgeInsets.zero,
+            primary: false,
+            physics: const NeverScrollableScrollPhysics(),
             children: blocks,
           ),
         ),
@@ -86,8 +88,10 @@ class BookPageContentView extends StatelessWidget {
               typography.bottomPadding + typography.pageNumberSize + 10,
             ),
             child: SelectionArea(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: ListView(
+                padding: EdgeInsets.zero,
+                primary: false,
+                physics: const NeverScrollableScrollPhysics(),
                 children: blocks,
               ),
             ),

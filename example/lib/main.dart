@@ -10,13 +10,14 @@ void main() {
 }
 
 // ---------------------------------------------------------------------------
-// Step 1: 准备页面数据
+// Step 1: Prepare page data
 //
-//   方式 A — 纯文字（向后兼容）：BookPage(title: ..., body: ...)
-//   方式 B — 图文混排：BookPage.rich(contents: [ TitleBlock, ParagraphBlock, ImageBlock, ... ])
+//   Option A — text only (backward compatible): BookPage(title: ..., body: ...)
+//   Option B — rich mixed content: BookPage.rich(contents: [ TitleBlock, ParagraphBlock, ImageBlock, ... ])
 // ---------------------------------------------------------------------------
 
-/// 生成一张纯色渐变占位图（演示用；实际项目用真实图片 bytes）。
+/// Generates a solid gradient placeholder image (for demo use only).
+/// In real projects, use actual image bytes.
 Future<Uint8List> _generatePlaceholderImage(
   int w,
   int h,
@@ -40,7 +41,8 @@ Future<Uint8List> _generatePlaceholderImage(
   return data!.buffer.asUint8List();
 }
 
-/// 构建演示文档（由 SDK 根据页面可用区域自动分页）。
+/// Builds a sample document.
+/// The SDK auto-paginates it based on the available page viewport.
 Future<BookDocument> _buildSampleDocument() async {
   final Uint8List imgA = await _generatePlaceholderImage(
     800,
@@ -140,7 +142,7 @@ class ExampleApp extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Step 2: 创建 Controller（集中传入页面 + 配置）
+// Step 2: Create the controller (provide pages + config in one place)
 // ---------------------------------------------------------------------------
 
 class ExampleScreen extends StatefulWidget {
@@ -160,7 +162,8 @@ class _ExampleScreenState extends State<ExampleScreen> {
   void initState() {
     super.initState();
 
-    // 创建 controller：先给空内容，等异步图片数据就绪后再填充自动分页文档
+    // Create the controller with empty content first, then set the
+    // auto-paginated document after async image data is ready.
     _controller = PageCurlController(
       pages: const <BookPage>[],
       config: const PageCurlConfig(
@@ -194,13 +197,13 @@ class _ExampleScreenState extends State<ExampleScreen> {
     super.dispose();
   }
 
-  // Step 4: 随时更新配置（用 copyWith 局部修改）
+  // Step 4: Update config anytime (partial updates via copyWith)
   void _updateConfig(PageCurlConfig Function(PageCurlConfig c) fn) {
     setState(() => _controller.config = fn(_controller.config));
   }
 
   // ---------------------------------------------------------------------------
-  // Step 3: 把 PageCurlBookView 放入 Widget 树
+  // Step 3: Put PageCurlBookView into the widget tree
   // ---------------------------------------------------------------------------
 
   @override

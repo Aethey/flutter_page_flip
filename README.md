@@ -5,6 +5,13 @@ Language / 言語 / 语言:
 
 ---
 
+## Demo Recordings
+
+- Android: [record/android_record.mp4](./record/android_record.mp4)
+- iOS: [record/ios_record.mp4](./record/ios_record.mp4)
+
+---
+
 ## 中文
 
 `vellum_engine` 是一个面向 Flutter 的翻页动画 SDK，提供更接近真实纸张的卷页体验，同时兼顾阅读场景下的文本选择、复制、图片混排和自动分页。

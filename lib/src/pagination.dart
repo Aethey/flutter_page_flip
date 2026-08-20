@@ -14,7 +14,13 @@ Future<List<BookPage>> paginateBookDocument({
   required Size size,
   required BookTypography typography,
 }) async {
-  if (size.width <= 1 || size.height <= 1) {
+  final double contentWidth = size.width - typography.horizontalPadding * 2;
+  final double contentHeight =
+      size.height - typography.topPadding - typography.bottomPadding - 20;
+  if (size.width <= 1 ||
+      size.height <= 1 ||
+      contentWidth <= 0 ||
+      contentHeight <= 0) {
     return const <BookPage>[];
   }
 
@@ -57,7 +63,7 @@ class _Paginator {
         case TitleBlock(:final text):
           await _addTextBlock(
             text: text,
-            builder: (String value) => TitleBlock(value),
+            builder: (String value, bool _) => TitleBlock(value),
             style: TextStyle(
               fontSize: typography.titleSize,
               height: 1.25,
@@ -70,7 +76,7 @@ class _Paginator {
         case ParagraphBlock(:final text):
           await _addTextBlock(
             text: text,
-            builder: (String value) => ParagraphBlock(value),
+            builder: (String value, bool _) => ParagraphBlock(value),
             style: TextStyle(
               fontSize: typography.bodySize,
               height: typography.lineHeight,
@@ -79,9 +85,17 @@ class _Paginator {
           );
 
         case QuoteBlock(:final text, :final attribution):
+          final String? normalizedAttribution =
+              attribution != null && attribution.trim().isNotEmpty
+                  ? attribution.trim()
+                  : null;
           await _addTextBlock(
             text: text,
-            builder: (String value) => QuoteBlock(value),
+            builder:
+                (String value, bool isLast) => QuoteBlock(
+                  value,
+                  attribution: isLast ? normalizedAttribution : null,
+                ),
             style: TextStyle(
               fontSize: typography.bodySize,
               height: typography.lineHeight,
@@ -89,17 +103,6 @@ class _Paginator {
               letterSpacing: 0.1,
             ),
           );
-          if (attribution != null && attribution.trim().isNotEmpty) {
-            await _addTextBlock(
-              text: attribution.trim(),
-              builder: (String value) => ParagraphBlock(value),
-              style: TextStyle(
-                fontSize: typography.bodySize - 2,
-                height: typography.lineHeight,
-                letterSpacing: 0.2,
-              ),
-            );
-          }
 
         case BulletListBlock(:final items):
           for (final String item in items) {
@@ -109,7 +112,8 @@ class _Paginator {
             }
             await _addTextBlock(
               text: trimmed,
-              builder: (String value) => BulletListBlock(<String>[value]),
+              builder:
+                  (String value, bool _) => BulletListBlock(<String>[value]),
               style: TextStyle(
                 fontSize: typography.bodySize,
                 height: typography.lineHeight,
@@ -132,7 +136,7 @@ class _Paginator {
 
   Future<void> _addTextBlock({
     required String text,
-    required PageContent Function(String value) builder,
+    required PageContent Function(String value, bool isLast) builder,
     required TextStyle style,
     int? maxLines,
   }) async {
@@ -168,7 +172,10 @@ class _Paginator {
         );
         final int split = forced <= 0 ? remaining.length : forced;
         final String chunk = remaining.substring(0, split).trimRight();
-        _pushBlock(builder(chunk), _measureTextHeight(chunk, style, maxLines));
+        _pushBlock(
+          builder(chunk, split >= remaining.length),
+          _measureTextHeight(chunk, style, maxLines),
+        );
         remaining = remaining.substring(split).trimLeft();
         if (remaining.isNotEmpty) {
           _flushPage();
@@ -181,12 +188,15 @@ class _Paginator {
       if (chunk.isEmpty) {
         final String fallback = remaining.substring(0, fit).trimRight();
         _pushBlock(
-          builder(fallback),
+          builder(fallback, fit >= remaining.length),
           _measureTextHeight(fallback, style, maxLines),
         );
         remaining = remaining.substring(fit).trimLeft();
       } else {
-        _pushBlock(builder(chunk), _measureTextHeight(chunk, style, maxLines));
+        _pushBlock(
+          builder(chunk, split >= remaining.length),
+          _measureTextHeight(chunk, style, maxLines),
+        );
         remaining = remaining.substring(split).trimLeft();
       }
 

@@ -230,6 +230,7 @@ class _PageCurlBookViewState extends State<PageCurlBookView>
   FlipDirection? _dir;
 
   int _page = 0;
+  int? _pendingInitialPage;
   Size _vp = Size.zero;
 
   List<BookPage>? _autoPages;
@@ -272,7 +273,13 @@ class _PageCurlBookViewState extends State<PageCurlBookView>
   @override
   void initState() {
     super.initState();
-    _page = widget.initialPage.clamp(0, math.max(0, _pages.length - 1));
+    final int totalPages = widget.controller.totalPages;
+    if (totalPages > 0) {
+      _page = widget.initialPage.clamp(0, totalPages - 1);
+    } else {
+      _page = 0;
+      _pendingInitialPage = widget.initialPage;
+    }
     _ac = AnimationController(vsync: this, lowerBound: -0.5, upperBound: 1.5)
       ..addListener(_onAnimTick);
     widget.controller.addListener(_onControllerChanged);
@@ -319,7 +326,10 @@ class _PageCurlBookViewState extends State<PageCurlBookView>
 
     setState(() {
       final int total = widget.controller.totalPages;
-      if (_page >= total) {
+      if (_pendingInitialPage != null && total > 0) {
+        _page = _pendingInitialPage!.clamp(0, total - 1);
+        _pendingInitialPage = null;
+      } else if (_page >= total) {
         _page = math.max(0, total - 1);
       }
     });
@@ -589,7 +599,10 @@ class _PageCurlBookViewState extends State<PageCurlBookView>
       _autoPages = pages;
       _paginatedSize = size;
       _paginating = false;
-      if (_page >= pages.length) {
+      if (_pendingInitialPage != null && pages.isNotEmpty) {
+        _page = _pendingInitialPage!.clamp(0, pages.length - 1);
+        _pendingInitialPage = null;
+      } else if (_page >= pages.length) {
         _page = math.max(0, pages.length - 1);
       }
       _pageCache

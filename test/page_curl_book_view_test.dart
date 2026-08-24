@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vellum_engine/page_curl.dart';
+import 'package:vellum_engine/src/geometry.dart';
+import 'package:vellum_engine/src/page_curl_painter.dart';
 
 BookPage _page(int number, String title) {
   return BookPage(pageNumber: number, title: title, body: 'Body for $title');
@@ -61,6 +63,23 @@ Finder _pageDragZone() {
     (Widget widget) => widget is GestureDetector && widget.onPanStart != null,
     description: 'active page drag zone',
   );
+}
+
+/// The geometry the curl painter is currently drawing, or null while the flip
+/// overlay is not mounted.
+CurlGeometry? _currentCurl(WidgetTester tester) {
+  final Iterable<Element> elements = find
+      .byWidgetPredicate(
+        (Widget widget) =>
+            widget is CustomPaint && widget.painter is PageCurlPainter,
+        description: 'page curl painter',
+      )
+      .evaluate();
+  if (elements.isEmpty) {
+    return null;
+  }
+  final CustomPaint paint = elements.single.widget as CustomPaint;
+  return (paint.painter! as PageCurlPainter).geometry;
 }
 
 void main() {
@@ -234,6 +253,74 @@ void main() {
     expect(find.text('Second Page'), findsOneWidget);
     expect(find.text('First Page'), findsNothing);
   });
+
+  for (final (String label, double anchorFraction) in <(String, double)>[
+    ('corner', 0.04),
+    ('side edge', 0.5),
+  ]) {
+    testWidgets('dragging past half and back settles without re-curling '
+        'at the $label', (WidgetTester tester) async {
+      final PageCurlController controller = PageCurlController(
+        pages: <BookPage>[_page(1, 'First Page'), _page(2, 'Second Page')],
+      );
+      addTearDown(controller.dispose);
+      final List<int> changed = <int>[];
+
+      await tester.pumpWidget(_wrap(controller, onPageChanged: changed.add));
+      await _pumpUntilFound(tester, find.text('First Page'));
+      await _pumpFor(tester, const Duration(milliseconds: 500));
+
+      final Rect zone = tester.getRect(_pageDragZone());
+      final TestGesture gesture = await tester.startGesture(
+        Offset(zone.right - 4, zone.top + zone.height * anchorFraction),
+      );
+
+      for (int i = 0; i < 6; i++) {
+        await gesture.moveBy(const Offset(-50, 0));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(_currentCurl(tester)!.progress, greaterThan(0.5));
+
+      for (int i = 0; i < 3; i++) {
+        await gesture.moveBy(const Offset(50, 0));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await gesture.up();
+      await tester.pump();
+
+      double previousProgress = _currentCurl(tester)!.progress;
+      bool collapsed = false;
+      for (int frame = 0; frame < 150; frame++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        final CurlGeometry? curl = _currentCurl(tester);
+        if (curl == null) {
+          break;
+        }
+
+        expect(
+          curl.progress,
+          lessThanOrEqualTo(previousProgress + 1e-6),
+          reason: 'the fold moved away from the anchor again on frame $frame',
+        );
+        previousProgress = curl.progress;
+
+        if (curl.hasCurl) {
+          expect(
+            collapsed,
+            isFalse,
+            reason: 'the curl re-opened after collapsing on frame $frame',
+          );
+        } else {
+          collapsed = true;
+        }
+      }
+
+      expect(_currentCurl(tester), isNull);
+      expect(changed, isEmpty);
+      expect(find.text('First Page'), findsOneWidget);
+      expect(find.text('Second Page'), findsNothing);
+    });
+  }
 
   testWidgets('previousPage without animation moves back one page', (
     WidgetTester tester,

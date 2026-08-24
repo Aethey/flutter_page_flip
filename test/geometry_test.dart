@@ -148,5 +148,67 @@ void main() {
 
       expect((geometry.touch - geometry.corner).distance, closeTo(80, 0.001));
     });
+
+    test('reports no curl when the drag rests on the anchor', () {
+      for (final (FlipDirection direction, Offset corner)
+          in <(FlipDirection, Offset)>[
+            (FlipDirection.next, const Offset(400, 0)),
+            (FlipDirection.next, const Offset(400, 600)),
+            (FlipDirection.next, const Offset(400, 300)),
+            (FlipDirection.prev, const Offset(0, 0)),
+            (FlipDirection.prev, const Offset(0, 600)),
+            (FlipDirection.prev, const Offset(0, 300)),
+          ]) {
+        final CurlGeometry geometry = computeCurlGeometry(
+          size: pageSize,
+          dragPoint: corner,
+          corner: corner,
+          direction: direction,
+          curlRadius: 400,
+        );
+
+        expect(
+          geometry.hasCurl,
+          isFalse,
+          reason: '$direction at $corner produced a degenerate curl',
+        );
+        expect(geometry.curlPolygon, isEmpty);
+        expect(geometry.progress, 0);
+        expect(geometry.foldStart, isNull);
+        expect(geometry.foldEnd, isNull);
+        expect(geometry.normal.dx.isFinite, isTrue);
+        expect(geometry.normal.dy.isFinite, isTrue);
+      }
+    });
+
+    test('leaves the page untouched when there is no curl', () {
+      final CurlGeometry geometry = computeCurlGeometry(
+        size: pageSize,
+        dragPoint: const Offset(400, 600),
+        corner: const Offset(400, 600),
+        direction: FlipDirection.next,
+        curlRadius: 400,
+      );
+
+      expect(
+        geometry.stationaryPath.contains(const Offset(399.9, 300)),
+        isTrue,
+      );
+      expect(geometry.stationaryPath.contains(const Offset(0.1, 300)), isTrue);
+      expect(geometry.curlPath.contains(const Offset(399.9, 300)), isFalse);
+    });
+
+    test('still builds a curl once the drag clears a pixel', () {
+      final CurlGeometry geometry = computeCurlGeometry(
+        size: pageSize,
+        dragPoint: const Offset(396, 600),
+        corner: const Offset(400, 600),
+        direction: FlipDirection.next,
+        curlRadius: 400,
+      );
+
+      expect(geometry.hasCurl, isTrue);
+      expect(geometry.progress, greaterThan(0));
+    });
   });
 }

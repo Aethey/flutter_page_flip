@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/physics.dart';
@@ -142,8 +143,21 @@ SpringSimulation buildBackSimulation({
   required double damping,
   required double normalizedVelocity,
 }) {
-  final SpringDescription springDescription =
+  final SpringDescription tuned =
       buildSpring(spring: spring, damping: damping);
+
+  // The simulation drives a lerp towards the anchored corner, so values above
+  // 1 have no geometry to map onto. An under-damped spring would oscillate
+  // around 1 and the clamped result flickers at the corner, so keep the back
+  // animation at least critically damped and let it settle monotonically.
+  final double criticalDamping = 2 * math.sqrt(tuned.stiffness * tuned.mass);
+  final SpringDescription springDescription = tuned.damping >= criticalDamping
+      ? tuned
+      : SpringDescription(
+          mass: tuned.mass,
+          stiffness: tuned.stiffness,
+          damping: criticalDamping,
+        );
 
   return SpringSimulation(
     springDescription,

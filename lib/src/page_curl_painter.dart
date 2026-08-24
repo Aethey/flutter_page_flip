@@ -514,15 +514,19 @@ class PageCurlPainter extends CustomPainter {
     final Rect pageRect = Offset.zero & size;
 
     if (geometry == null) {
-      canvas.drawImage(currentImage, Offset.zero, Paint());
-      _drawIdleEdgeShadow(canvas, size);
+      if (paintStationaryCurrentPage) {
+        canvas.drawImage(currentImage, Offset.zero, Paint());
+        _drawIdleEdgeShadow(canvas, size);
+      }
       return;
     }
 
     final CurlGeometry g = geometry!;
     final ui.Image flapBackImage = backFaceImage ?? currentImage;
     if (!g.hasCurl) {
-      canvas.drawImage(currentImage, Offset.zero, Paint());
+      if (paintStationaryCurrentPage) {
+        canvas.drawImage(currentImage, Offset.zero, Paint());
+      }
       return;
     }
 

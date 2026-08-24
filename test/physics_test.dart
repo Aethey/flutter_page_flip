@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+
+import 'package:flutter/physics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vellum_engine/src/geometry.dart';
 import 'package:vellum_engine/src/physics.dart';
@@ -141,4 +144,64 @@ void main() {
       expect(strong.damping, 120);
     });
   });
+
+  group('buildBackSimulation', () {
+    test('settles onto the anchor without oscillating', () {
+      final SpringSimulation simulation = buildBackSimulation(
+        spring: 420,
+        damping: 24,
+        normalizedVelocity: 0,
+      );
+
+      double previous = simulation.x(0);
+      for (int i = 1; i <= 1000; i++) {
+        final double current = simulation.x(i / 1000);
+        expect(
+          current,
+          greaterThanOrEqualTo(previous - 1e-9),
+          reason: 'value dipped back at t=${i / 1000}',
+        );
+        previous = current;
+      }
+      expect(previous, closeTo(1.0, 0.001));
+    });
+
+    test('never travels past the anchor for any release velocity', () {
+      for (final double velocity in <double>[-4.5, -2, 0, 2, 4.5, 20]) {
+        for (final double spring in <double>[10, 420, 4000]) {
+          final SpringSimulation simulation = buildBackSimulation(
+            spring: spring,
+            damping: 1,
+            normalizedVelocity: velocity,
+          );
+
+          expect(
+            _maxValue(simulation),
+            lessThanOrEqualTo(1 + 1e-9),
+            reason: 'spring=$spring velocity=$velocity overshot the anchor',
+          );
+        }
+      }
+    });
+
+    test('leaves an already over-damped config alone', () {
+      final SpringSimulation simulation = buildBackSimulation(
+        spring: 80,
+        damping: 120,
+        normalizedVelocity: 0,
+      );
+
+      expect(_maxValue(simulation, seconds: 40), lessThanOrEqualTo(1 + 1e-9));
+      expect(simulation.x(40), closeTo(1.0, 0.001));
+    });
+  });
+}
+
+/// Samples the simulation densely and returns the largest value reached.
+double _maxValue(SpringSimulation simulation, {int seconds = 4}) {
+  double maxValue = double.negativeInfinity;
+  for (int i = 0; i <= seconds * 1000; i++) {
+    maxValue = math.max(maxValue, simulation.x(i / 1000));
+  }
+  return maxValue;
 }

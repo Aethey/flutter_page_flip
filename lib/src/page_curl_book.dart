@@ -1142,10 +1142,10 @@ class _PageCurlBookViewState extends State<PageCurlBookView>
         _vp.isEmpty)
       return null;
 
-    final bool overshoot =
-        _state == _Flip.toNext ||
-        _state == _Flip.toPrev ||
-        _state == _Flip.dragging;
+    // The release point can sit outside the page because dragging allows
+    // overscroll. Keeping the same allowance while springing back avoids
+    // re-clamping the touch into the page on the first frame of the return.
+    final bool overshoot = _state != _Flip.idle;
     return computeCurlGeometry(
       size: _vp,
       dragPoint: _drag!,

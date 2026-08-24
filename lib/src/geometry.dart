@@ -7,6 +7,10 @@ enum FlipDirection {
   prev,
 }
 
+/// Smallest distance between the anchor and the drag point that still produces
+/// a curl worth drawing, in logical pixels.
+const double _minVisibleCurl = 0.75;
+
 @immutable
 class CurlGeometry {
   const CurlGeometry({
@@ -98,18 +102,35 @@ CurlGeometry computeCurlGeometry({
     touch = corner + fromCorner * (radius / fromCornerDistance);
   }
 
-  Offset vector = corner - touch;
-  double dist = vector.distance;
-  if (dist < 0.001) {
-    final double epsilon = direction == FlipDirection.next ? 0.001 : -0.001;
-    touch = clampPointToPage(
-      Offset(corner.dx - epsilon, corner.dy),
-      size,
-      overscrollX: overscrollX,
-      overscrollY: overscrollY,
+  final Offset vector = corner - touch;
+  final double dist = vector.distance;
+  final Path fullPath = Path()..addRect(pageRect);
+
+  // A fold this close to the anchor is sub-pixel. Clipping the page against it
+  // yields a degenerate sliver spanning the anchored edge, which the painter
+  // still renders as a contour line and a highlight band on a page that should
+  // look flat. Report "no curl" so callers fall back to the plain page.
+  if (dist < _minVisibleCurl) {
+    final Offset flatNormal = direction == FlipDirection.next
+        ? const Offset(1, 0)
+        : const Offset(-1, 0);
+    final Offset flatTangent = Offset(-flatNormal.dy, flatNormal.dx);
+    return CurlGeometry(
+      pageRect: pageRect,
+      corner: corner,
+      rawTouch: rawTouch,
+      touch: touch,
+      mid: corner,
+      normal: flatNormal,
+      tangent: flatTangent,
+      progress: 0,
+      foldAngle: math.atan2(flatTangent.dy, flatTangent.dx),
+      curlPolygon: const <Offset>[],
+      curlPath: Path(),
+      stationaryPath: fullPath,
+      foldStart: null,
+      foldEnd: null,
     );
-    vector = corner - touch;
-    dist = math.max(0.001, vector.distance);
   }
 
   final Offset normal = vector / dist;
@@ -122,7 +143,6 @@ CurlGeometry computeCurlGeometry({
     curlPath.addPolygon(curlPolygon, true);
   }
 
-  final Path fullPath = Path()..addRect(pageRect);
   final Path stationaryPath = curlPolygon.length >= 3
       ? Path.combine(PathOperation.difference, fullPath, curlPath)
       : fullPath;

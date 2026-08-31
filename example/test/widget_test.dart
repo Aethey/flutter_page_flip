@@ -6,6 +6,6 @@ void main() {
   testWidgets('Example app renders', (WidgetTester tester) async {
     await tester.pumpWidget(const ExampleApp());
     await tester.pump(const Duration(seconds: 1));
-    expect(find.textContaining('Page'), findsOneWidget);
+    expect(find.text('Page 1/3'), findsOneWidget);
   });
 }
